@@ -579,7 +579,7 @@ def index():
     cursor = conn.cursor()
     
     # Get all cards
-    cursor.execute('SELECT * FROM cards ORDER BY created_at DESC')
+    cursor.execute('SELECT * FROM cards ORDER BY due_day ASC')
     cards = cursor.fetchall()
     
     # Calculate totals and interest
@@ -988,7 +988,7 @@ def plaid_manage():
     conn = get_db()
     cursor = conn.cursor()
     
-    cursor.execute('SELECT * FROM plaid_items ORDER BY created_at DESC')
+    cursor.execute('SELECT * FROM plaid_items ORDER BY due_day ASC')
     items = cursor.fetchall()
     
     cursor.execute('SELECT * FROM plaid_accounts ORDER BY plaid_item_id')

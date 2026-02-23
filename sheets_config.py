@@ -19,12 +19,14 @@ SHEET_NAME = 'Accounts'
 # Based on actual header positions:
 # Name = B (index 1)
 # Current Balance = J (index 9)
+# Credit Limit = K (index 10)
 # Liability Interest Rate = O (index 14)
 # Next Payment Due Date = R (index 17)
 # Minimum Payment Amount = T (index 19)
 COLUMN_MAPPING = {
     'card_name': 1,        # Column B - Name
     'balance': 9,          # Column J - Current Balance
+    'credit_limit': 10,    # Column K - Credit Limit
     'apr': 14,             # Column O - Liability Interest Rate
     'due_date': 17,        # Column R - Next Payment Due Date
     'minimum_payment': 19, # Column T - Minimum Payment Amount

@@ -118,23 +118,56 @@
     <table>
         <thead>
             <tr>
-                <th>Card Name</th>
+                <th>Card</th>
+                <th class="mobile-hide">Limit</th>
                 <th>Balance</th>
-                <th>Credit Limit</th>
-                <th>Available</th>
-                <th>APR</th>
-                <th>Monthly Interest</th>
-                <th>Min Payment</th>
-                <th>Due Day</th>
-                <th>Actions</th>
+                <th class="mobile-hide">Avail</th>
+                <th class="mobile-hide">APR</th>
+                <th class="mobile-hide">Min</th>
+                <th>Due</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
             {% for card in cards %}
             <tr>
                 <td><strong>{{ card.name }}</strong></td>
+                <td class="mobile-hide">{% if card.get('credit_limit', 0) > 0 %}{{ card.get('credit_limit', 0)|currency }}{% else %}—{% endif %}</td>
                 <td>{{ card.balance|currency }}</td>
-                <td>{% if card.get('credit_limit', 0) > 0 %}{{ card.get('credit_limit', 0)|currency }}{% else %}—{% endif %}</td>
+                <td class="mobile-hide">{% if card.get('credit_limit', 0) > 0 %}{{ (card.get('credit_limit', 0) - card.get('balance', 0))|currency }}{% else %}—{% endif %}</td>
+                <td class="mobile-hide">{{ "%.1f"|format(card.interest_rate) }}%</td>
+                <td class="mobile-hide">{{ card.minimum_payment|currency }}</td>
+                <td>{{ card.due_day }}{% if card.due_day == 1 %}st{% elif card.due_day == 2 %}nd{% elif card.due_day == 3 %}rd{% else %}th{% endif %}</td>
+                <td>
+                    <a href="/card/{{ card.id }}/payment" class="btn btn-small">Pay</a>
+                </td>
+            </tr>
+            {% if card.get('credit_limit', 0) > 0 %}
+            <tr>
+                <td colspan="8" style="padding: 5px 0;">
+                    <div style="background: #e0e0e0; border-radius: 5px; height: 10px; width: 100%; overflow: hidden;">
+                        {% set card_percent = ((card.get('credit_limit', 0) - card.get('balance', 0)) / card.get('credit_limit', 1) * 100) %}
+                        <div style="background: {% if card_percent > 50 %}#27ae60{% elif card_percent > 25 %}#f39c12{% else %}#e74c3c{% endif %}; height: 100%; width: {{ card_percent }}%;"></div>
+                    </div>
+                    <small style="color: #7f8c8d;">{{ card_percent|round(1) }}% available</small>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            <tr class="total-row">
+                <td><strong>Total</strong></td>
+                <td class="mobile-hide"></td>
+                <td><strong>{{ total_debt|currency }}</strong></td>
+                <td class="mobile-hide"></td>
+                <td class="mobile-hide"></td>
+                <td class="mobile-hide"></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+    {% endif %}</td>
                 <td>{% if card.get('credit_limit', 0) > 0 %}{{ (card.get('credit_limit', 0) - card.get('balance', 0))|currency }}{% else %}—{% endif %}</td>
                 <td>{{ "%.1f"|format(card.interest_rate) }}%</td>
                 <td style="color: #e74c3c;">{{ card.monthly_interest|currency }}</td>

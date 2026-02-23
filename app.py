@@ -575,6 +575,33 @@ else:
 @app.route('/')
 @login_required
 def index():
+    # Auto-sync from Google Sheets on every page load
+    if sheets_config.SPREADSHEET_ID:
+        try:
+            cards = read_credit_card_balances()
+            if cards:
+                conn = get_db()
+                cursor = conn.cursor()
+                for card in cards:
+                    cursor.execute('SELECT id FROM cards WHERE name = ?', (card['name'],))
+                    existing = cursor.fetchone()
+                    credit_limit = card.get('credit_limit', 0)
+                    if existing:
+                        cursor.execute('''
+                            UPDATE cards 
+                            SET balance = ?, interest_rate = ?, due_day = ?, minimum_payment = ?, credit_limit = ?, last_synced = datetime('now')
+                            WHERE name = ?
+                        ''', (card['balance'], card['interest_rate'], card['due_day'], card['minimum_payment'], credit_limit, card['name']))
+                    else:
+                        cursor.execute('''
+                            INSERT INTO cards (name, balance, interest_rate, due_day, minimum_payment, credit_limit, last_synced)
+                            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+                        ''', (card['name'], card['balance'], card['interest_rate'], card['due_day'], card['minimum_payment'], credit_limit))
+                conn.commit()
+                conn.close()
+        except Exception as e:
+            print(f"Auto-sync error: {e}")
+    
     conn = get_db()
     cursor = conn.cursor()
     

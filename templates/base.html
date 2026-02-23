@@ -347,6 +347,11 @@
                 font-size: 24px;
             }
             
+            /* Hide columns on mobile */
+            .mobile-hide {
+                display: none;
+            }
+            
             /* Make tables scrollable on mobile */
             .table-wrapper {
                 overflow-x: auto;
@@ -355,7 +360,7 @@
             
             table {
                 font-size: 13px;
-                min-width: 600px;
+                min-width: auto;
             }
             
             th, td {
@@ -381,7 +386,7 @@
             input[type="password"],
             select,
             textarea {
-                font-size: 16px; /* Prevents zoom on iOS */
+                font-size: 16px;
                 padding: 10px;
                 width: 100%;
             }

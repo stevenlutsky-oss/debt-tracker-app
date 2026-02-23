@@ -23,7 +23,40 @@ except ImportError:
     GOOGLE_SHEETS_AVAILABLE = False
 
 app = Flask(__name__)
-app.secret_key = 'debt-tracker-secret-key'  # Change in production
+app.secret_key = os.environ.get('SECRET_KEY', 'debt-tracker-secret-key')
+
+# Simple auth config
+ADMIN_USER = os.environ.get('ADMIN_USER', 'stevenlutsky@gmail.com')
+ADMIN_PASS = os.environ.get('ADMIN_PASS', '!8Rooper1617')
+
+def login_required(f):
+    """Decorator to require login"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if username == ADMIN_USER and password == ADMIN_PASS:
+            session['logged_in'] = True
+            session['username'] = username
+            return redirect(url_for('index'))
+        else:
+            error = 'Invalid credentials'
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 # Add custom Jinja filter for currency formatting
 @app.template_filter('currency')
@@ -356,6 +389,7 @@ def check_low_balance_alerts():
     return len(low_balance_accounts)
 
 @app.route('/sheets/sync')
+@login_required
 def sync_from_sheets():
     """Sync credit card balances from Google Sheet"""
     if not sheets_config.SPREADSHEET_ID:
@@ -509,6 +543,7 @@ else:
     migrate_db()
 
 @app.route('/')
+@login_required
 def index():
     conn = get_db()
     cursor = conn.cursor()
@@ -606,6 +641,7 @@ def index():
                            alerts=alerts, plaid_available=PLAID_AVAILABLE, bank_accounts=bank_accounts)
 
 @app.route('/card/add', methods=['GET', 'POST'])
+@login_required
 def add_card():
     if request.method == 'POST':
         name = request.form['name']
@@ -630,6 +666,7 @@ def add_card():
     return render_template('card_form.html', card=None, title='Add Card')
 
 @app.route('/card/<int:card_id>/edit', methods=['GET', 'POST'])
+@login_required
 def edit_card(card_id):
     conn = get_db()
     cursor = conn.cursor()
@@ -660,6 +697,7 @@ def edit_card(card_id):
     return render_template('card_form.html', card=card, title='Edit Card')
 
 @app.route('/card/<int:card_id>/delete')
+@login_required
 def delete_card(card_id):
     conn = get_db()
     cursor = conn.cursor()
@@ -684,6 +722,7 @@ def delete_card(card_id):
     return redirect(url_for('index'))
 
 @app.route('/card/<int:card_id>/payment', methods=['GET', 'POST'])
+@login_required
 def add_payment(card_id):
     conn = get_db()
     cursor = conn.cursor()
@@ -762,6 +801,7 @@ def sync_card(card_id):
 # ============= PLAID LINK ROUTES =============
 
 @app.route('/plaid/create_link_token')
+@login_required
 def create_link_token():
     """Create a Link token for Plaid Link"""
     if not PLAID_AVAILABLE:
@@ -780,6 +820,7 @@ def create_link_token():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/plaid/exchange_public_token', methods=['POST'])
+@login_required
 def exchange_public_token():
     """Exchange public token for access token"""
     if not PLAID_AVAILABLE:
@@ -825,6 +866,7 @@ def exchange_public_token():
 # ============= NEW PLAID ROUTES =============
 
 @app.route('/plaid/link')
+@login_required
 def plaid_link_page():
     """Start Plaid Link flow"""
     if not PLAID_AVAILABLE:
@@ -895,6 +937,7 @@ def plaid_exchange_token():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/plaid/manage')
+@login_required
 def plaid_manage():
     """Manage linked Plaid accounts"""
     conn = get_db()
@@ -998,6 +1041,7 @@ def plaid_link_account(account_id):
     return redirect(url_for('plaid_manage'))
 
 @app.route('/plaid/status')
+@login_required
 def plaid_status():
     """Check Plaid configuration status"""
     configured = PLAID_AVAILABLE and plaid_config.PLAID_CLIENT_ID
@@ -1026,6 +1070,7 @@ def get_sheets_client():
         return None
 
 @app.route('/sheets/status')
+@login_required
 def sheets_status():
     """Check Google Sheets configuration status"""
     configured = False
@@ -1046,6 +1091,7 @@ def sheets_status():
     })
 
 @app.route('/sheets/fetch-balances')
+@login_required
 def sheets_fetch_balances():
     """Fetch credit card balances from Google Sheets"""
     if not sheets_config.SPREADSHEET_ID:
@@ -1121,6 +1167,7 @@ def sheets_fetch_balances():
         return redirect(url_for('index'))
 
 @app.route('/sheets/sync-balances', methods=['POST'])
+@login_required
 def sheets_sync_balances():
     """Sync balances from Google Sheets to the debt tracker database"""
     if not sheets_config.SPREADSHEET_ID:
@@ -1164,6 +1211,7 @@ def sheets_sync_balances():
     return redirect(url_for('index'))
 
 @app.route('/sheets/manage')
+@login_required
 def sheets_manage():
     """Manage Google Sheets integration"""
     # Get current sync status
@@ -1188,6 +1236,7 @@ def sheets_manage():
 # ============= STRATEGY & PROGRESS ROUTES =============
 
 @app.route('/strategy')
+@login_required
 def strategy():
     conn = get_db()
     cursor = conn.cursor()
@@ -1209,6 +1258,7 @@ def strategy():
                            snowball=snowball, avalanche=avalanche)
 
 @app.route('/progress')
+@login_required
 def progress():
     conn = get_db()
     cursor = conn.cursor()
@@ -1463,6 +1513,7 @@ def check_due_dates_and_alert():
     return len(due_cards) + len(overdue_cards)
 
 @app.route('/email/test')
+@login_required
 def test_email():
     """Send a test email"""
     if not EMAIL_AVAILABLE:
@@ -1477,6 +1528,7 @@ def test_email():
     return redirect(url_for('index'))
 
 @app.route('/email/send-alerts')
+@login_required
 def send_alerts():
     """Manually trigger alert check"""
     count = check_due_dates_and_alert()
@@ -1487,6 +1539,7 @@ def send_alerts():
     return redirect(url_for('index'))
 
 @app.route('/email/configure')
+@login_required
 def email_configure():
     """Show email configuration page"""
     config = {}
@@ -1502,6 +1555,7 @@ def email_configure():
     return render_template('email_config.html', config=config)
 
 @app.route('/email/configure', methods=['POST'])
+@login_required
 def email_configure_save():
     """Save email configuration"""
     # This would write to email_config.py - for now just show success

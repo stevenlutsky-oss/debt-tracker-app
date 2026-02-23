@@ -174,15 +174,18 @@ def read_credit_card_balances():
                     except ValueError:
                         apr = 0
                 
-                # Parse Due Date (extract day of month) - ONLY update if we get valid data
+                # Parse Due Date (extract day of month) - handle multiple formats
                 due_day = None
                 if len(row) > COLUMN_MAPPING['due_date']:
                     due_str = row[COLUMN_MAPPING['due_date']]
-                    if due_str and due_str.strip() and '-' in due_str:
+                    if due_str and due_str.strip():
                         import re
-                        day_match = re.search(r'-(\d{1,2})$', due_str.strip())
+                        # Try different date formats: 2026-03-22, 03/22/2026, Mar 22, etc.
+                        # Match last number in string (day)
+                        day_match = re.search(r'(\d{1,2})$', due_str.strip())
                         if day_match:
                             due_day = int(day_match.group(1))
+                            due_day = max(1, min(28, due_day))  # Clamp to valid days
                 
                 # Parse Minimum Payment
                 min_payment = 0
@@ -452,15 +455,17 @@ def sync_from_sheets():
             credit_limit = card.get('credit_limit', 0)
             
             if existing:
-                # NEVER update due_day - preserve whatever is in the database
+                # Get existing due_day to preserve if no valid new data
                 cursor.execute('SELECT due_day FROM cards WHERE name = ?', (card['name'],))
                 row = cursor.fetchone()
                 existing_due_day = row['due_day'] if row else 1
                 
-                # Update everything EXCEPT due_day
+                # Only update due_day if we got a valid number from Sheets
+                due_day_to_set = card['due_day'] if card['due_day'] else existing_due_day
+                
                 cursor.execute(
-                    'UPDATE cards SET balance = ?, interest_rate = ?, minimum_payment = ?, credit_limit = ?, last_synced = ? WHERE name = ?',
-                    (card['balance'], card['interest_rate'], card['minimum_payment'], credit_limit, datetime.now(), card['name'])
+                    'UPDATE cards SET balance = ?, interest_rate = ?, due_day = ?, minimum_payment = ?, credit_limit = ?, last_synced = ? WHERE name = ?',
+                    (card['balance'], card['interest_rate'], due_day_to_set, card['minimum_payment'], credit_limit, datetime.now(), card['name'])
                 )
                 updated += 1
             else:

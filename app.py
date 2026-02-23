@@ -1587,8 +1587,15 @@ def test_email():
     
     return redirect(url_for('index'))
 
+
+
+@app.route('/debug/env')
+def debug_env():
+    key = os.environ.get('ALERT_API_KEY', 'NOT_SET')
+    return f"ALERT_API_KEY: {key}"
+
 @app.route('/email/send-alerts')
-@app.route('/email/send-alerts/<api_key>')
+@app.route('/email/send-alerts/<api_key>)
 def send_alerts(api_key=None):
     """Manually trigger alert check - requires login or valid API key"""
     # Check API key if provided (for cron jobs)

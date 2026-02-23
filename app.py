@@ -1456,6 +1456,16 @@ def check_due_dates_and_alert():
     bank_accounts = read_bank_accounts()
     total_bank = sum(a['balance'] for a in bank_accounts) if bank_accounts else 0
     
+    # Calculate bank balance after payments
+    balance_after_payments = total_bank - total_min
+    low_balance_alert = balance_after_payments < 3000
+    
+    # Build alert message for bank balance
+    if balance_after_payments < 3000:
+        balance_alert = '<p style="background: #fee; color: #c00; padding: 10px; border-radius: 5px; font-weight: bold;">⚠️ ALERT: Bank balance will be below $3,000 after payments!</p>'
+    else:
+        balance_alert = '<p style="background: #e8f5e9; color: #27ae60; padding: 10px; border-radius: 5px; font-weight: bold;">✅ Bank balance will remain above $3,000</p>'
+    
     body = f"""
     <!DOCTYPE html>
     <html>
@@ -1490,6 +1500,13 @@ def check_due_dates_and_alert():
                     <p>Total Due: <span class="total">${total_min:,.2f}</span></p>
                     <p>Total Credit Card Balance: ${total_balance:,.2f}</p>
                     <p>🏦 Bank Balance: ${total_bank:,.2f}</p>
+                    <p>💰 Balance After Payments: ${balance_after_payments:,.2f}</p>
+
+                    {% if balance_after_payments < 3000 %}
+                    <p style="background: #fee; color: #c00; padding: 10px; border-radius: 5px; font-weight: bold;">⚠️ ALERT: Bank balance will be below $3,000 after payments!</p>
+                    {% else %}
+                    <p style="background: #e8f5e9; color: #27ae60; padding: 10px; border-radius: 5px; font-weight: bold;">✅ Bank balance will remain above $3,000</p>
+                    {% endif %}
                 </div>
     """
     

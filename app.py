@@ -587,6 +587,12 @@ else:
 @app.route('/')
 @login_required
 def index():
+    # Auto-sync from Google Sheets on page load
+    try:
+        sync_from_sheets()
+    except Exception as e:
+        print(f"Auto-sync error: {e}")
+    
     conn = get_db()
     cursor = conn.cursor()
     

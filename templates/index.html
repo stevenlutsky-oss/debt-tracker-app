@@ -131,8 +131,8 @@
             <tr>
                 <td><strong>{{ card.name }}</strong></td>
                 <td>{{ card.balance|currency }}</td>
-                <td>{% if card.credit_limit > 0 %}{{ card.credit_limit|currency }}{% else %}—{% endif %}</td>
-                <td>{% if card.credit_limit > 0 %}{{ (card.credit_limit - card.balance)|currency }}{% else %}—{% endif %}</td>
+                <td>{% if card['credit_limit'] > 0 %}{{ card['credit_limit']|currency }}{% else %}—{% endif %}</td>
+                <td>{% if card['credit_limit'] > 0 %}{{ (card['credit_limit'] - card['balance'])|currency }}{% else %}—{% endif %}</td>
                 <td>{{ "%.1f"|format(card.interest_rate) }}%</td>
                 <td style="color: #e74c3c;">{{ card.monthly_interest|currency }}</td>
                 <td>{{ card.minimum_payment|currency }}</td>
@@ -145,11 +145,11 @@
                     </div>
                 </td>
             </tr>
-            {% if card.credit_limit > 0 %}
+            {% if card['credit_limit'] > 0 %}
             <tr>
                 <td colspan="8" style="padding-top: 0; padding-bottom: 15px;">
                     <div style="background: #e0e0e0; border-radius: 5px; height: 12px; width: 100%; overflow: hidden;">
-                        {% set card_percent = ((card.credit_limit - card.balance) / card.credit_limit * 100) %}
+                        {% set card_percent = ((card['credit_limit'] - card['balance']) / card['credit_limit'] * 100) %}
                         <div style="background: {% if card_percent > 50 %}#27ae60{% elif card_percent > 25 %}#f39c12{% else %}#e74c3c{% endif %}; height: 100%; width: {{ card_percent }}%;"></div>
                     </div>
                     <small style="color: #7f8c8d;">{{ card_percent|round(1) }}% available</small>

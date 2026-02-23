@@ -167,7 +167,7 @@ def read_credit_card_balances():
                 if len(row) > COLUMN_MAPPING['due_date']:
                     due_str = row[COLUMN_MAPPING['due_date']].strip()
                     import re
-                    day_match = re.search(r'(\d{1,2})', due_str)
+                    day_match = re.search(r'-(\d{1,2})$', due_str)
                     if day_match:
                         due_day = int(day_match.group(1))
                 
@@ -259,7 +259,7 @@ def read_credit_card_balances():
                     due_str = row[COLUMN_MAPPING['due_date']].strip()
                     # Try to extract day number
                     import re
-                    day_match = re.search(r'(\d{1,2})', due_str)
+                    day_match = re.search(r'-(\d{1,2})$', due_str)
                     if day_match:
                         due_day = int(day_match.group(1))
                         due_day = max(1, min(28, due_day))  # Clamp to valid days
@@ -1191,7 +1191,7 @@ def sheets_fetch_balances():
                 due_day = 1
                 if len(row) > 3:
                     due_str = row[3].strip()
-                    day_match = re.search(r'(\d{1,2})', due_str)
+                    day_match = re.search(r'-(\d{1,2})$', due_str)
                     if day_match:
                         due_day = int(day_match.group(1))
                         due_day = max(1, min(28, due_day))

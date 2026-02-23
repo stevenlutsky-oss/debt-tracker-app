@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Link Account - Debt Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>🔗 Link Your Bank Account</h2>
+    <p>Connect your bank to automatically sync credit card balances.</p>
+    
+    <div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+        <h3>How it works:</h3>
+        <ol style="margin-left: 20px; line-height: 2;">
+            <li>Click "Link Account" below to open Plaid</li>
+            <li>Log in with your bank credentials (sandbox/test credentials)</li>
+            <li>Select a credit card account to link</li>
+            <li>Your balance will automatically sync!</li>
+        </ol>
+    </div>
+    
+    <button id="link-btn" class="btn btn-plaid" style="font-size: 16px; padding: 15px 30px;">
+        🔗 Link Bank Account
+    </button>
+    
+    <p style="margin-top: 20px; color: #7f8c8d; font-size: 14px;">
+        🔒 Your credentials are never stored on our server. Plaid handles all bank authentication securely.
+    </p>
+</div>
+
+<div class="card">
+    <h3>Why use Plaid?</h3>
+    <ul style="margin-left: 20px;">
+        <li>✅ Automatic balance updates - never manually enter balances again</li>
+        <li>✅ Real-time data - see your current balance, not last month's statement</li>
+        <li>✅ Secure - bank-level encryption via Plaid</li>
+        <li>✅ Free in sandbox mode - test with fake accounts</li>
+    </ul>
+</div>
+
+<script>
+    const linkToken = '{{ link_token }}';
+    
+    document.getElementById('link-btn').addEventListener('click', async function() {
+        const handler = Plaid.create({
+            token: linkToken,
+            onSuccess: async function(public_token, metadata) {
+                console.log('Success:', metadata);
+                
+                // Send to server to exchange token
+                const response = await fetch('/plaid/exchange-token', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        public_token: public_token,
+                        metadata: metadata
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('🎉 Account linked successfully!');
+                    window.location.href = '/plaid/manage';
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            },
+            onExit: function(err, metadata) {
+                if (err) {
+                    console.log('Exit with error:', err);
+                    alert('Link cancelled or failed: ' + err.display_message);
+                }
+            },
+            onLoad: function() {
+                console.log('Plaid Link loaded');
+            }
+        });
+        
+        handler.open();
+    });
+</script>
+{% endblock %}

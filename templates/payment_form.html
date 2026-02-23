@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Record Payment - Debt Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Record Payment - {{ card.name }}</h2>
+    
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+        <p><strong>Current Balance:</strong> {{ card.balance|currency }}</p>
+        <p><strong>Interest Rate:</strong> {{ "%.1f"|format(card.interest_rate) }}%</p>
+        <p><strong>Minimum Payment:</strong> {{ card.minimum_payment|currency }}</p>
+    </div>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="amount">Payment Amount ($)</label>
+            <input type="number" id="amount" name="amount" step="0.01" min="0" placeholder="0.00" required>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn btn-success">Record Payment</button>
+            <a href="/" class="btn">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

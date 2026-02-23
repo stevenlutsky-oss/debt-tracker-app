@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Linked Accounts - Debt Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>🔗 Linked Accounts</h2>
+    <p>Manage your Plaid-linked bank accounts and map them to your cards.</p>
+    
+    <div style="margin: 20px 0;">
+        <a href="/plaid/link" class="btn btn-plaid">+ Link New Account</a>
+        <a href="/plaid/refresh-balances" class="btn btn-sync">🔄 Refresh All Balances</a>
+    </div>
+</div>
+
+{% if items %}
+{% for item in items %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h3>🏦 {{ item.institution_name }}</h3>
+            <p style="color: #7f8c8d; font-size: 14px;">
+                Linked {{ item.created_at[:10] }} • {{ item.account_count }} account(s)
+            </p>
+        </div>
+        <form method="POST" action="/plaid/unlink/{{ item.id }}" onsubmit="return confirm('Are you sure you want to unlink this account?');">
+            <button type="submit" class="btn btn-danger btn-small">Unlink</button>
+        </form>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Plaid Account</th>
+                <th>Account Number</th>
+                <th>Linked Card</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for account in accounts %}
+                {% if account.plaid_item_id == item.id %}
+                <tr>
+                    <td>{{ account.name }}</td>
+                    <td>{{ account.mask }}</td>
+                    <td>
+                        {% if account.card_name %}
+                            <span class="badge badge-synced">{{ account.card_name }}</span>
+                        {% else %}
+                            <span style="color: #7f8c8d;">Not linked</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="POST" action="/plaid/link-account/{{ account.id }}" style="display: flex; gap: 10px; align-items: center;">
+                            <select name="card_id" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                                <option value="">-- Select Card --</option>
+                                {% for card in cards %}
+                                <option value="{{ card.id }}" {% if account.card_id == card.id %}selected{% endif %}>
+                                    {{ card.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-small">Link</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endfor %}
+{% else %}
+<div class="card">
+    <h3>No linked accounts</h3>
+    <p>Link your bank account to automatically sync credit card balances.</p>
+    <a href="/plaid/link" class="btn btn-plaid">Link Account</a>
+</div>
+{% endif %}
+
+<div class="card" style="background: #f8f9fa;">
+    <h3>ℹ️ How to use</h3>
+    <ol style="margin-left: 20px; line-height: 1.8;">
+        <li>Link your bank account using Plaid</li>
+        <li>Find the credit card account in the list above</li>
+        <li>Select which card in your debt tracker it corresponds to</li>
+        <li>Click "Refresh All Balances" to sync latest balances</li>
+    </ol>
+</div>
+{% endblock %}

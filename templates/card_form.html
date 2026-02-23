@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Debt Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ title }}</h2>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="name">Card Name</label>
+            <input type="text" id="name" name="name" placeholder="e.g., Chase Sapphire" value="{{ card.name if card else '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="balance">Current Balance ($)</label>
+            <input type="number" id="balance" name="balance" step="0.01" min="0" placeholder="0.00" value="{{ card.balance if card else '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="interest_rate">Interest Rate (APR %)</label>
+            <input type="number" id="interest_rate" name="interest_rate" step="0.1" min="0" placeholder="e.g., 24.99" value="{{ card.interest_rate if card else '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="minimum_payment">Minimum Payment ($)</label>
+            <input type="number" id="minimum_payment" name="minimum_payment" step="0.01" min="0" placeholder="0.00" value="{{ card.minimum_payment if card else '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="due_day">Due Day of Month (1-31)</label>
+            <input type="number" id="due_day" name="due_day" min="1" max="31" placeholder="e.g., 15" value="{{ card.due_day if card and card.due_day else '1' }}">
+            <small style="color: #7f8c8d;">Day of month when payment is due</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="alert_threshold">Balance Alert Threshold ($)</label>
+            <input type="number" id="alert_threshold" name="alert_threshold" step="0.01" min="0" placeholder="e.g., 500" value="{{ card.alert_threshold if card and card.alert_threshold else '' }}">
+            <small style="color: #7f8c8d;">Get alerted when balance drops below this amount (leave empty to disable)</small>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn btn-success">Save Card</button>
+            <a href="/" class="btn">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Sheet Balances - Debt Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>📊 Credit Card Balances from Google Sheets</h2>
+    <p>Found {{ balances|length }} card(s) in your spreadsheet.</p>
+</div>
+
+{% if balances %}
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Card Name</th>
+                <th>Balance</th>
+                <th>APR</th>
+                <th>Due Day</th>
+                <th>Account (last 4)</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for card in balances %}
+            <tr>
+                <td><strong>{{ card.name }}</strong></td>
+                <td>{{ card.balance|currency }}</td>
+                <td>{{ "%.1f"|format(card.apr) }}%</td>
+                <td>{{ card.due_day }}{% if card.due_day == 1 %}st{% elif card.due_day == 2 %}nd{% elif card.due_day == 3 %}rd{% else %}th{% endif %}</td>
+                <td>{{ card.account_last4 }}</td>
+                <td>
+                    <form method="POST" action="/sheets/sync-balances" style="display: inline;">
+                        <input type="hidden" name="card_name" value="{{ card.name }}">
+                        <input type="hidden" name="balance" value="{{ card.balance }}">
+                        <button type="submit" class="btn btn-small btn-sync">Sync</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 20px;">
+        <form method="POST" action="/sheets/sync-balances">
+            <button type="submit" class="btn btn-success">🔄 Sync All to Debt Tracker</button>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <p>No credit card balances found in the spreadsheet.</p>
+    <p>Make sure your Google Sheet has:</p>
+    <ul style="margin-left: 20px;">
+        <li>Column A: Card name</li>
+        <li>Column B: Balance (number or with $)</li>
+        <li>Column C: APR (e.g., "24.99%" or "24.99")</li>
+        <li>Column D: Due date (day of month, e.g., "15" or "02/15")</li>
+    </ul>
+</div>
+{% endif %}
+
+<div class="card">
+    <a href="/sheets/manage" class="btn">← Back to Sheets Setup</a>
+</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Payoff Strategy - Debt Tracker{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 20px;">Payoff Strategy</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Debt</h3>
+        <div class="value">{{ total_debt|currency }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Number of Cards</h3>
+        <div class="value">{{ cards|length }}</div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <div class="strategy-card">
+        <h3>❄️ Snowball Method <span class="badge badge-snowball">Recommended for motivation</span></h3>
+        <p style="color: #7f8c8d; margin-bottom: 15px;">
+            Pay off smallest balances first. Great for building momentum and staying motivated!
+        </p>
+        <ol class="priority-list">
+            {% for card in snowball %}
+            <li>
+                <span><strong>{{ card.name }}</strong></span>
+                <span>{{ card.balance|currency }}</span>
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+    
+    <div class="strategy-card">
+        <h3>🔥 Avalanche Method <span class="badge badge-avalanche">Saves most money</span></h3>
+        <p style="color: #7f8c8d; margin-bottom: 15px;">
+            Pay off highest interest rates first. Mathematically optimal - saves the most money!
+        </p>
+        <ol class="priority-list">
+            {% for card in avalanche %}
+            <li>
+                <span><strong>{{ card.name }}</strong> ({{ "%.1f"|format(card.interest_rate) }}%)</span>
+                <span>{{ card.balance|currency }}</span>
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+</div>
+
+<div class="card">
+    <h2>💡 How It Works</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+            <h3>Snowball</h3>
+            <ul style="margin-left: 20px; color: #555;">
+                <li>List debts from smallest to largest</li>
+                <li>Make minimum payments on all except smallest</li>
+                <li>Put extra money toward the smallest debt</li>
+                <li>When smallest is paid, roll that payment to the next</li>
+                <li><strong>Pros:</strong> Quick wins, stays motivated</li>
+                <li><strong>Cons:</strong> May pay more interest over time</li>
+            </ul>
+        </div>
+        <div>
+            <h3>Avalanche</h3>
+            <ul style="margin-left: 20px; color: #555;">
+                <li>List debts from highest to lowest interest rate</li>
+                <li>Make minimum payments on all except highest rate</li>
+                <li>Put extra money toward highest interest debt</li>
+                <li>When highest is paid, roll that payment to the next</li>
+                <li><strong>Pros:</strong> Saves the most money</li>
+                <li><strong>Cons:</strong> May take longer to see progress</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

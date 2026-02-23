@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Google Sheets Integration - Debt Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>📊 Google Sheets Integration</h2>
+    <p>Sync credit card balances from Google Sheets (powered by Finta.io).</p>
+</div>
+
+<div class="card">
+    <h3>📋 Current Sheet Data</h3>
+    
+    {% if sheet_data and sheet_data|length > 1 %}
+    <table>
+        <thead>
+            <tr>
+                {% for header in sheet_data[0] %}
+                <th>{{ header }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in sheet_data[1:] %}
+            <tr>
+                {% for cell in row %}
+                <td>{{ cell }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 20px;">
+        <form method="POST" action="/sheets/sync-balances">
+            <button type="submit" class="btn btn-sync">🔄 Sync Balances to Debt Tracker</button>
+        </form>
+        <p style="margin-top: 10px; color: #7f8c8d; font-size: 14px;">
+            This will update the balance for matching cards in your debt tracker.
+        </p>
+    </div>
+    {% elif sheet_data %}
+    <p>No data rows found (only headers).</p>
+    {% else %}
+    <p style="color: #7f8c8d;">No data available. Check your configuration.</p>
+    {% endif %}
+</div>
+
+<div class="card" style="background: #f8f9fa;">
+    <h3>🔧 Setup Instructions</h3>
+    
+    <ol style="margin-left: 20px; line-height: 2;">
+        <li><strong>Set up Finta:</strong> Go to <a href="https://finta.io" target="_blank">finta.io</a> to sync your bank accounts to Google Sheets</li>
+        <li><strong>Get Google Cloud Credentials:</strong>
+            <ul style="margin-left: 20px;">
+                <li>Go to <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a></li>
+                <li>Create a project and enable the Google Sheets API</li>
+                <li>Create a service account and download the JSON credentials</li>
+                <li>Save the credentials file as <code>credentials.json</code> in the debt-tracker folder</li>
+                <li>Share your Google Sheet with the service account email</li>
+            </ul>
+        </li>
+        <li><strong>Configure the app:</strong> Edit <code>sheets_config.py</code> with your spreadsheet ID</li>
+    </ol>
+    
+    <h4 style="margin-top: 15px;">Expected Sheet Format (from finta.io):</h4>
+    <table style="max-width: 600px;">
+        <tr><th>Column A</th><th>Column B</th><th>Column C</th><th>Column D</th><th>Column E (optional)</th></tr>
+        <tr><td>Card Name</td><td>Balance</td><td>APR</td><td>Due Date</td><td>Last 4 digits</td></tr>
+        <tr><td>Chase Sapphire</td><td>$5,432.10</td><td>24.99%</td><td>15</td><td>1234</td></tr>
+        <tr><td>Amex Gold</td><td>$2,100.00</td><td>19.99%</td><td>1</td><td>5678</td></tr>
+    </table>
+    <p style="margin-top: 10px; color: #7f8c8d; font-size: 14px;">
+        <strong>Note:</strong> Finta.io syncs your bank data to Google Sheets. Set up finta.io to connect your credit cards, 
+        then configure the sheet name and column mapping in <code>sheets_config.py</code>.
+    </p>
+</div>
+
+<div class="card">
+    <h3>📝 Configuration</h3>
+    <pre style="background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px; overflow-x: auto;">
+# sheets_config.py
+CREDENTIALS_FILE = 'credentials.json'  # Your Google service account JSON
+SPREADSHEET_ID = '1abc123...'          # From your Google Sheets URL
+SHEET_NAME = 'Balances'               # Sheet tab name
+    </pre>
+</div>
+{% endblock %}

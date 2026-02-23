@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Debt Tracker{% endblock %}
+
+{% block content %}
+
+{% if alerts %}
+<div class="card" id="alerts-panel" style="background: #fff3cd; border: 1px solid #ffc107;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="color: #856404;">🔔 Alerts</h2>
+        <button onclick="document.getElementById('alerts-panel').style.display='none'; localStorage.setItem('alertsDismissed', 'true')" style="background:none;border:none;font-size:20px;cursor:pointer;padding:0 5px;">✕</button>
+    </div>
+    <ul style="margin-left: 20px; color: #856404;">
+        {% for alert in alerts %}
+        <li style="margin-bottom: 5px;">{{ alert }}</li>
+        {% endfor %}
+    </ul>
+</div>
+<script>
+    if (localStorage.getItem('alertsDismissed') === 'true') {
+        document.getElementById('alerts-panel').style.display = 'none';
+    }
+</script>
+{% endif %}
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Debt</h3>
+        <div class="value">{{ total_debt|currency }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Monthly Interest</h3>
+        <div class="value" style="color: #e74c3c;">{{ total_interest|currency }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Total Cards</h3>
+        <div class="value">{{ cards|length }}</div>
+    </div>
+</div>
+
+{% if bank_accounts %}
+<div class="card" style="background: #e8f5e9; border: 1px solid #4caf50;">
+    <h2 style="color: #2e7d32;">🏦 Bank Accounts</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Account</th>
+                <th>Type</th>
+                <th>Balance</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for account in bank_accounts %}
+            <tr>
+                <td><strong>{{ account.name }}</strong></td>
+                <td>{{ account.account_type|title }}</td>
+                <td>{{ account.balance|currency }}</td>
+                <td>
+                    {% if account.balance < 3000 %}
+                    <span style="color: #e74c3c; font-weight: bold;">⚠️ Low Balance</span>
+                    {% else %}
+                    <span style="color: #27ae60;">✓ OK</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top: 10px; font-size: 12px; color: #7f8c8d;">💡 You'll get an email alert if any account drops below $3,000</p>
+</div>
+{% endif %}
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2>Your Credit Cards</h2>
+        <div>
+            <a href="/card/add" class="btn btn-success">+ Add Card</a>
+        </div>
+    </div>
+    
+    {% if cards %}
+    <table>
+        <thead>
+            <tr>
+                <th>Card Name</th>
+                <th>Balance</th>
+                <th>APR</th>
+                <th>Monthly Interest</th>
+                <th>Min Payment</th>
+                <th>Due Day</th>
+                <th>Alert</th>
+                <th>Sync Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for card in cards %}
+            <tr>
+                <td><strong>{{ card.name }}</strong></td>
+                <td>{{ card.balance|currency }}</td>
+                <td>{{ "%.1f"|format(card.interest_rate) }}%</td>
+                <td style="color: #e74c3c;">{{ card.monthly_interest|currency }}</td>
+                <td>{{ card.minimum_payment|currency }}</td>
+                <td>{{ card.due_day }}{% if card.due_day == 1 %}st{% elif card.due_day == 2 %}nd{% elif card.due_day == 3 %}rd{% else %}th{% endif %}</td>
+                <td>{% if card.alert_threshold > 0 %}{{ card.alert_threshold|currency }}{% else %}—{% endif %}</td>
+                <td>
+                    <span style="color: #7f8c8d;">Manual</span>
+                </td>
+                <td>
+                    <div class="actions">
+                        <a href="/card/{{ card.id }}/payment" class="btn btn-small">Payment</a>
+                        <a href="/card/{{ card.id }}/edit" class="btn btn-small">Edit</a>
+                        <a href="/card/{{ card.id }}/delete" class="btn btn-small btn-danger" onclick="return confirm('Are you sure?')">×</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td><strong>Total</strong></td>
+                <td><strong>{{ total_debt|currency }}</strong></td>
+                <td></td>
+                <td style="color: #e74c3c;"><strong>{{ total_interest|currency }}</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align: center; color: #7f8c8d; padding: 40px;">
+        No cards added yet. <a href="/card/add">Add your first card</a> to start tracking!
+    </p>
+    {% endif %}
+</div>
+
+{% if recent_payments %}
+<div class="card">
+    <h2>Recent Payments</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Card</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in recent_payments %}
+            <tr>
+                <td>{{ payment.date[:10] }}</td>
+                <td>{{ payment.card_name }}</td>
+                <td style="color: #27ae60;">{{ payment.amount|currency }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

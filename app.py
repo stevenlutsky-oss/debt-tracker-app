@@ -1388,6 +1388,38 @@ def send_email_alert(subject, body):
         print(f"Error sending email: {e}")
         return False
 
+
+
+@app.route('/email/check-balance')
+@app.route('/email/check-balance/<api_key>')
+def check_balance_alerts(api_key=None):
+    """Check bank balance and send alert if below threshold - for cron jobs"""
+    if api_key:
+        expected_key = os.environ.get('ALERT_API_KEY', 'debt-tracker-secret-key')
+        if api_key != expected_key:
+            return "Unauthorized", 401
+    elif not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    # Sync first
+    try:
+        sync_from_sheets()
+    except Exception as e:
+        print(f"Sync error: {e}")
+    
+    # Check and send
+    count = check_low_balance_alerts()
+    if api_key:
+        if count > 0:
+            return f"{{\"status\": \"success\", \"alerts_sent\": {count}}}", 200
+        else:
+            return f"{{\"status\": \"ok\", \"message\": \"Bank balance above threshold\"}}", 200
+    if count > 0:
+        flash(f'Balance alert sent for {count} account(s)!', 'success')
+    else:
+        flash('Bank balance is above threshold', 'info')
+    return redirect(url_for('index'))
+
 def check_due_dates_and_alert():
     """Check for cards due soon and send email alerts - also checks low bank balance"""
     if not EMAIL_AVAILABLE or not hasattr(email_config, 'TO_EMAIL') or not email_config.TO_EMAIL:

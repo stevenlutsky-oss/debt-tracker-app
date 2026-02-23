@@ -174,11 +174,11 @@ def read_credit_card_balances():
                     except ValueError:
                         apr = 0
                 
-                # Parse Due Date (extract day of month)
+                # Parse Due Date (extract day of month) - ONLY update if we get valid data
                 due_day = None
                 if len(row) > COLUMN_MAPPING['due_date']:
                     due_str = row[COLUMN_MAPPING['due_date']]
-                    if due_str and due_str.strip():
+                    if due_str and due_str.strip() and '-' in due_str:
                         import re
                         day_match = re.search(r'-(\d{1,2})$', due_str.strip())
                         if day_match:

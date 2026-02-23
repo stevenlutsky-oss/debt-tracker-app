@@ -1388,11 +1388,18 @@ def check_due_dates_and_alert():
     for card in cards:
         due_day = card['due_day']
         # Calculate days until due
+        # Get days in current month
+        if today.month == 12:
+            next_month = datetime(today.year + 1, 1, 1)
+        else:
+            next_month = datetime(today.year, today.month + 1, 1)
+        days_in_month = (next_month - datetime(today.year, today.month, 1)).days
+        
         if today.day <= due_day:
             days_until = due_day - today.day
         else:
             # Due next month
-            days_until = (30 - today.day) + due_day
+            days_until = (days_in_month - today.day) + due_day
         
         card_data = {
             'name': card['name'],

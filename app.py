@@ -59,6 +59,18 @@ def logout():
     return redirect(url_for('login'))
 
 # Add custom Jinja filter for currency formatting
+@app.template_filter('ordinal')
+def ordinal_filter(num):
+    if 11 <= (num % 100) <= 13:
+        return f"{num}th"
+    if num % 10 == 1:
+        return f"{num}st"
+    if num % 10 == 2:
+        return f"{num}nd"
+    if num % 10 == 3:
+        return f"{num}rd"
+    return f"{num}th"
+
 @app.template_filter('currency')
 def currency_filter(value):
     """Format a number as currency with commas"""

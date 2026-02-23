@@ -133,7 +133,7 @@
         {% endif %}
         <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; opacity: 0.9;">
             <span>{{ card.interest_rate }}% APR</span>
-            <span>Due: {{ card.due_day }}{% if card.due_day == 1 %}st{% elif card.due_day == 2 %}nd{% elif card.due_day == 3 %}rd{% else %}th{% endif %}</span>
+            <span>Due: {{ card.due_day|ordinal }}</span>
         </div>
     </div>
     {% endfor %}

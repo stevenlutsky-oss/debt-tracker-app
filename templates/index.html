@@ -73,6 +73,7 @@
 {% if bank_accounts %}
 <div class="card" style="background: #e8f5e9; border: 1px solid #4caf50;">
     <h2 style="color: #2e7d32;">🏦 Bank Accounts</h2>
+    <div class="table-wrapper">
     <table>
         <thead>
             <tr>
@@ -99,6 +100,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     <p style="margin-top: 10px; font-size: 12px; color: #7f8c8d;">💡 You'll get an email alert if any account drops below $3,000</p>
 </div>
 {% endif %}
@@ -112,6 +114,7 @@
     </div>
     
     {% if cards %}
+    <div class="table-wrapper">
     <table>
         <thead>
             <tr>
@@ -170,6 +173,7 @@
             </tr>
         </tbody>
     </table>
+    </div>
     {% else %}
     <p style="text-align: center; color: #7f8c8d; padding: 40px;">
         No cards added yet. <a href="/card/add">Add your first card</a> to start tracking!
@@ -180,6 +184,7 @@
 {% if recent_payments %}
 <div class="card">
     <h2>Recent Payments</h2>
+    <div class="table-wrapper">
     <table>
         <thead>
             <tr>
@@ -198,6 +203,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 {% endif %}
 {% endblock %}

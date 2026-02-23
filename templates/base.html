@@ -299,6 +299,132 @@
         {% block content %}{% endblock %}
     </div>
     
+    <style>
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            header {
+                padding: 15px 0;
+                margin-bottom: 15px;
+            }
+            
+            header h1 {
+                font-size: 24px;
+            }
+            
+            nav {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            nav a {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+            
+            .card {
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+            
+            .card h2 {
+                font-size: 20px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 10px;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+            
+            .stat-card .value {
+                font-size: 24px;
+            }
+            
+            /* Make tables scrollable on mobile */
+            .table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            table {
+                font-size: 13px;
+                min-width: 600px;
+            }
+            
+            th, td {
+                padding: 8px 5px;
+            }
+            
+            .btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            
+            .btn-small {
+                padding: 5px 8px;
+                font-size: 11px;
+            }
+            
+            .form-group {
+                margin-bottom: 15px;
+            }
+            
+            input[type="text"],
+            input[type="number"],
+            input[type="password"],
+            select,
+            textarea {
+                font-size: 16px; /* Prevents zoom on iOS */
+                padding: 10px;
+                width: 100%;
+            }
+            
+            label {
+                font-size: 14px;
+            }
+            
+            .actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+            
+            .flash {
+                padding: 10px;
+                font-size: 14px;
+            }
+            
+            .progress-container {
+                padding: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            header h1 {
+                font-size: 20px;
+            }
+            
+            .stat-card h3 {
+                font-size: 12px;
+            }
+            
+            .stat-card .value {
+                font-size: 20px;
+            }
+            
+            table {
+                font-size: 11px;
+            }
+        }
+    </style>
+    
     <script>
         // Custom scripts can go here
     </script>

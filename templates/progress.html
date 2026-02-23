@@ -8,6 +8,7 @@
 <div class="card">
     <h2>Current Card Balances</h2>
     {% if cards %}
+    <div class="table-wrapper">
     <table>
         <thead>
             <tr>
@@ -24,6 +25,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
     <p style="color: #7f8c8d; text-align: center; padding: 20px;">
         No cards added yet.
@@ -34,6 +36,7 @@
 <div class="card">
     <h2>Monthly Payment History</h2>
     {% if monthly_payments %}
+    <div class="table-wrapper">
     <table>
         <thead>
             <tr>
@@ -50,6 +53,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
     <p style="color: #7f8c8d; text-align: center; padding: 20px;">
         No payments recorded yet. Record your first payment to start tracking progress!

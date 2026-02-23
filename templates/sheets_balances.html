@@ -10,6 +10,7 @@
 
 {% if balances %}
 <div class="card">
+    <div class="table-wrapper">
     <table>
         <thead>
             <tr>
@@ -40,6 +41,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     
     <div style="margin-top: 20px;">
         <form method="POST" action="/sheets/sync-balances">

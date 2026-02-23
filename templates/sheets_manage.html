@@ -13,6 +13,7 @@
     <h3>📋 Current Sheet Data</h3>
     
     {% if sheet_data and sheet_data|length > 1 %}
+    <div class="table-wrapper">
     <table>
         <thead>
             <tr>
@@ -31,6 +32,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     
     <div style="margin-top: 20px;">
         <form method="POST" action="/sheets/sync-balances">
@@ -71,6 +73,7 @@
         <tr><td>Chase Sapphire</td><td>$5,432.10</td><td>24.99%</td><td>15</td><td>1234</td></tr>
         <tr><td>Amex Gold</td><td>$2,100.00</td><td>19.99%</td><td>1</td><td>5678</td></tr>
     </table>
+    </div>
     <p style="margin-top: 10px; color: #7f8c8d; font-size: 14px;">
         <strong>Note:</strong> Finta.io syncs your bank data to Google Sheets. Set up finta.io to connect your credit cards, 
         then configure the sheet name and column mapping in <code>sheets_config.py</code>.

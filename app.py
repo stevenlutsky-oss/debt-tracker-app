@@ -652,7 +652,8 @@ def index():
             'plaid_item_id': card['plaid_item_id'],
             'plaid_access_token': card['plaid_access_token'],
             'last_synced': last_synced,
-            'created_at': card['created_at']
+            'created_at': card['created_at'],
+            'credit_limit': credit_limit
         })
     
     # Get recent payments

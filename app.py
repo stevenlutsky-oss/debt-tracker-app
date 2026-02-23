@@ -82,14 +82,25 @@ def get_google_sheets_service():
     if not GOOGLE_SHEETS_AVAILABLE:
         return None
     
-    if not CREDENTIALS_FILE or not SPREADSHEET_ID:
+    if not SPREADSHEET_ID:
         return None
     
     try:
-        credentials = service_account.Credentials.from_service_account_file(
-            CREDENTIALS_FILE,
-            scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
-        )
+        # Check for credentials in environment variable first
+        creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+        if creds_json:
+            import json
+            from io import StringIO
+            credentials_info = json.loads(creds_json)
+            credentials = service_account.Credentials.from_service_account_info(
+                credentials_info,
+                scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
+            )
+        else:
+            credentials = service_account.Credentials.from_service_account_file(
+                CREDENTIALS_FILE,
+                scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
+            )
         service = build('sheets', 'v4', credentials=credentials)
         return service
     except FileNotFoundError:

@@ -452,18 +452,15 @@ def sync_from_sheets():
             credit_limit = card.get('credit_limit', 0)
             
             if existing:
-                # Get existing due_day to preserve if not in Sheets data
+                # NEVER update due_day - preserve whatever is in the database
                 cursor.execute('SELECT due_day FROM cards WHERE name = ?', (card['name'],))
                 row = cursor.fetchone()
                 existing_due_day = row['due_day'] if row else 1
                 
-                # Use existing due_day if not parsed from Sheets
-                due_day_to_set = card['due_day'] if card['due_day'] else existing_due_day
-                
-                # Update balance, APR, due_day, minimum_payment, and credit_limit
+                # Update everything EXCEPT due_day
                 cursor.execute(
-                    'UPDATE cards SET balance = ?, interest_rate = ?, due_day = ?, minimum_payment = ?, credit_limit = ?, last_synced = ? WHERE name = ?',
-                    (card['balance'], card['interest_rate'], due_day_to_set, card['minimum_payment'], credit_limit, datetime.now(), card['name'])
+                    'UPDATE cards SET balance = ?, interest_rate = ?, minimum_payment = ?, credit_limit = ?, last_synced = ? WHERE name = ?',
+                    (card['balance'], card['interest_rate'], card['minimum_payment'], credit_limit, datetime.now(), card['name'])
                 )
                 updated += 1
             else:
@@ -1697,17 +1694,3 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(debug=debug_mode, port=port, host='0.0.0.0')
-
-
-@app.route('/debug/cards')
-def debug_cards():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute('SELECT name, due_day, balance FROM cards')
-    cards = cursor.fetchall()
-    conn.close()
-    result = "<h1>Cards</h1><ul>"
-    for c in cards:
-        result += f"<li>{c['name']}: due_day={c['due_day']}, balance={c['balance']}</li>"
-    result += "</ul>"
-    return result

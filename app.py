@@ -637,7 +637,7 @@ def index():
                 if days_until_due <= 0:
                     alerts.append(f"⚠️ {card['name']} payment is DUE NOW! (was due {due_date_str})")
                 else:
-                    alerts.append(f"📅 {card['name']} payment due in {days_until_due} day(s) ({due_date_str})")
+                    alerts.append(f"📅 {card['name']} payment due {days_until_due} day(s) ({due_date_str})")
         except:
             pass
         
@@ -1401,10 +1401,23 @@ def check_due_dates_and_alert():
             # Due next month
             days_until = (days_in_month - today.day) + due_day
         
+        # Get ordinal suffix for due day
+        def ordinal(n):
+            if 11 <= (n % 100) <= 13:
+                return f"{n}th"
+            if n % 10 == 1:
+                return f"{n}st"
+            if n % 10 == 2:
+                return f"{n}nd"
+            if n % 10 == 3:
+                return f"{n}rd"
+            return f"{n}th"
+        
         card_data = {
             'name': card['name'],
             'balance': card['balance'],
             'due_day': due_day,
+            'due_day_ordinal': ordinal(due_day),
             'minimum_payment': card['minimum_payment'],
             'interest_rate': card['interest_rate'],
             'days_until': days_until
@@ -1511,14 +1524,14 @@ def check_due_dates_and_alert():
                     </tr>
         """
         for card in sorted(due_cards, key=lambda x: x['days_until']):
-            days_text = "Due today!" if card['days_until'] == 0 else f"In {card['days_until']} day(s)"
+            days_text = "Due today!" if card['days_until'] == 0 else f"Due in {card['days_until']} days"
             body += f"""
                     <tr>
                         <td><strong>{card['name']}</strong></td>
                         <td>${card['balance']:,.2f}</td>
                         <td>{card['interest_rate']}%</td>
                         <td>${card['minimum_payment']:,.2f}</td>
-                        <td class="due-text">{card['due_day']}st ({days_text})</td>
+                        <td class="due-text">{card['due_day_ordinal']} ({days_text})</td>
                     </tr>
             """
         body += """

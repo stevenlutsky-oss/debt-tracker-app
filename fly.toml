@@ -1,0 +1,21 @@
+# fly.toml app configuration file generated for debt-tracker on 2026-02-23T10:37:41-08:00
+
+app = 'debt-tracker'
+primary_region = 'lax'
+
+[build]
+  builder = "paketobuildpacks/builder:base"
+
+[http_service]
+  internal_port = 5000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024

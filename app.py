@@ -1565,6 +1565,6 @@ def email_configure_save():
 if __name__ == '__main__':
     init_db()
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5001))
+    port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(debug=debug_mode, port=port, host='0.0.0.0')

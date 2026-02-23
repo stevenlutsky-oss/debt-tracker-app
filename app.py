@@ -175,13 +175,14 @@ def read_credit_card_balances():
                         apr = 0
                 
                 # Parse Due Date (extract day of month)
-                due_day = 1
+                due_day = None
                 if len(row) > COLUMN_MAPPING['due_date']:
-                    due_str = row[COLUMN_MAPPING['due_date']].strip()
-                    import re
-                    day_match = re.search(r'-(\d{1,2})$', due_str)
-                    if day_match:
-                        due_day = int(day_match.group(1))
+                    due_str = row[COLUMN_MAPPING['due_date']]
+                    if due_str and due_str.strip():
+                        import re
+                        day_match = re.search(r'-(\d{1,2})$', due_str.strip())
+                        if day_match:
+                            due_day = int(day_match.group(1))
                 
                 # Parse Minimum Payment
                 min_payment = 0
@@ -266,15 +267,16 @@ def read_credit_card_balances():
                         apr = 0
                 
                 # Parse Due Date (extract day of month)
-                due_day = 1
+                due_day = 1  # Default only for new cards
                 if len(row) > COLUMN_MAPPING['due_date']:
-                    due_str = row[COLUMN_MAPPING['due_date']].strip()
-                    # Try to extract day number
-                    import re
-                    day_match = re.search(r'-(\d{1,2})$', due_str)
-                    if day_match:
-                        due_day = int(day_match.group(1))
-                        due_day = max(1, min(28, due_day))  # Clamp to valid days
+                    due_str = row[COLUMN_MAPPING['due_date']]
+                    if due_str and due_str.strip():
+                        # Try to extract day number
+                        import re
+                        day_match = re.search(r'-(\d{1,2})$', due_str.strip())
+                        if day_match:
+                            due_day = int(day_match.group(1))
+                            due_day = max(1, min(28, due_day))  # Clamp to valid days
                 
                 # Optional fields
                 account_last4 = ''
@@ -450,17 +452,26 @@ def sync_from_sheets():
             credit_limit = card.get('credit_limit', 0)
             
             if existing:
+                # Get existing due_day to preserve if not in Sheets data
+                cursor.execute('SELECT due_day FROM cards WHERE name = ?', (card['name'],))
+                row = cursor.fetchone()
+                existing_due_day = row['due_day'] if row else 1
+                
+                # Use existing due_day if not parsed from Sheets
+                due_day_to_set = card['due_day'] if card['due_day'] else existing_due_day
+                
                 # Update balance, APR, due_day, minimum_payment, and credit_limit
                 cursor.execute(
                     'UPDATE cards SET balance = ?, interest_rate = ?, due_day = ?, minimum_payment = ?, credit_limit = ?, last_synced = ? WHERE name = ?',
-                    (card['balance'], card['interest_rate'], card['due_day'], card['minimum_payment'], credit_limit, datetime.now(), card['name'])
+                    (card['balance'], card['interest_rate'], due_day_to_set, card['minimum_payment'], credit_limit, datetime.now(), card['name'])
                 )
                 updated += 1
             else:
-                # Add new card
+                # Add new card - default due_day to 1 if not in Sheets
+                due_day_to_set = card['due_day'] if card['due_day'] else 1
                 cursor.execute(
                     'INSERT INTO cards (name, balance, interest_rate, due_day, minimum_payment, credit_limit, last_synced) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    (card['name'], card['balance'], card['interest_rate'], card['due_day'], card['minimum_payment'], credit_limit, datetime.now())
+                    (card['name'], card['balance'], card['interest_rate'], due_day_to_set, card['minimum_payment'], credit_limit, datetime.now())
                 )
                 added += 1
         

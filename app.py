@@ -1599,6 +1599,12 @@ def send_alerts(api_key=None):
     elif not session.get('logged_in'):
         return redirect(url_for('login'))
     count = check_due_dates_and_alert()
+    if api_key:
+        # Return JSON for API calls
+        if count > 0:
+            return f"{{\"status\": \"success\", \"alerts_sent\": {count}}}", 200
+        else:
+            return f"{{\"status\": \"ok\", \"message\": \"No payments due within alert window\"}}", 200
     if count > 0:
         flash(f'Sent alerts for {count} card(s)!', 'success')
     else:

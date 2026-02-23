@@ -1588,9 +1588,16 @@ def test_email():
     return redirect(url_for('index'))
 
 @app.route('/email/send-alerts')
-@login_required
-def send_alerts():
-    """Manually trigger alert check"""
+@app.route('/email/send-alerts/<api_key>')
+def send_alerts(api_key=None):
+    """Manually trigger alert check - requires login or valid API key"""
+    # Check API key if provided (for cron jobs)
+    if api_key:
+        expected_key = os.environ.get('ALERT_API_KEY', 'debt-tracker-secret-key')
+        if api_key != expected_key:
+            return "Unauthorized", 401
+    elif not session.get('logged_in'):
+        return redirect(url_for('login'))
     count = check_due_dates_and_alert()
     if count > 0:
         flash(f'Sent alerts for {count} card(s)!', 'success')

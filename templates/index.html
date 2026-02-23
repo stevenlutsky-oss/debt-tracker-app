@@ -36,7 +36,39 @@
         <h3>Total Cards</h3>
         <div class="value">{{ cards|length }}</div>
     </div>
+    {% if total_credit_limit > 0 %}
+    <div class="stat-card">
+        <h3>Credit Limit</h3>
+        <div class="value">{{ total_credit_limit|currency }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Available Credit</h3>
+        <div class="value" style="color: #27ae60;">{{ total_available_credit|currency }}</div>
+    </div>
+    {% endif %}
 </div>
+
+{% if total_credit_limit > 0 %}
+<div class="card">
+    <h3>📊 Credit Utilization & Payoff Progress</h3>
+    <div style="margin-top: 15px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <span>Paid Off: <strong>{{ percent_paid|round(1) }}%</strong></span>
+            <span>Used: <strong>{{ (100 - percent_paid)|round(1) }}%</strong></span>
+        </div>
+        <div style="background: #e0e0e0; border-radius: 10px; height: 30px; overflow: hidden;">
+            <div style="background: linear-gradient(90deg, #27ae60, #2ecc71); height: 100%; width: {{ percent_paid }}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; transition: width 0.5s ease;">
+                {% if percent_paid > 15 %}
+                {{ percent_paid|round(1) }}%
+                {% endif %}
+            </div>
+        </div>
+        <p style="margin-top: 10px; color: #7f8c8d; font-size: 14px;">
+            {{ total_available_credit|currency }} available of {{ total_credit_limit|currency }} total credit
+        </p>
+    </div>
+</div>
+{% endif %}
 
 {% if bank_accounts %}
 <div class="card" style="background: #e8f5e9; border: 1px solid #4caf50;">

@@ -544,6 +544,12 @@ def migrate_db():
         cursor.execute('ALTER TABLE cards ADD COLUMN plaid_access_token TEXT')
         cursor.execute('ALTER TABLE cards ADD COLUMN last_synced TIMESTAMP')
     
+    # Add credit_limit field if it doesn't exist
+    try:
+        cursor.execute('SELECT credit_limit FROM cards LIMIT 1')
+    except:
+        cursor.execute('ALTER TABLE cards ADD COLUMN credit_limit REAL')
+    
     conn.commit()
     conn.close()
 
@@ -566,6 +572,7 @@ def index():
     # Calculate totals and interest
     total_debt = 0
     total_interest = 0
+    total_credit_limit = 0
     alerts = []
     today = datetime.now()
     
@@ -576,12 +583,14 @@ def index():
         due_day = card['due_day'] if card['due_day'] else 1
         alert_threshold = card['alert_threshold'] if card['alert_threshold'] else 0
         last_synced = card['last_synced']
+        credit_limit = card['credit_limit'] if card['credit_limit'] else 0
         
         # Monthly interest
         monthly_interest = (balance * (apr / 100)) / 12
         
         total_debt += balance
         total_interest += monthly_interest
+        total_credit_limit += credit_limit
         
         # Check balance alert
         if alert_threshold > 0 and balance <= alert_threshold:
@@ -647,9 +656,18 @@ def index():
     # Also fetch bank accounts for display
     bank_accounts = read_bank_accounts()
     
+    # Calculate available credit and percentage paid off
+    total_available_credit = max(0, total_credit_limit - total_debt)
+    percent_paid = 0
+    if total_credit_limit > 0:
+        paid = total_credit_limit - total_debt
+        percent_paid = (paid / total_credit_limit) * 100
+    
     return render_template('index.html', cards=cards_with_interest, total_debt=total_debt, 
                            total_interest=total_interest, recent_payments=recent_payments,
-                           alerts=alerts, plaid_available=PLAID_AVAILABLE, bank_accounts=bank_accounts)
+                           alerts=alerts, plaid_available=PLAID_AVAILABLE, bank_accounts=bank_accounts,
+                           total_credit_limit=total_credit_limit, total_available_credit=total_available_credit,
+                           percent_paid=percent_paid)
 
 @app.route('/card/add', methods=['GET', 'POST'])
 @login_required
@@ -661,13 +679,14 @@ def add_card():
         minimum_payment = float(request.form['minimum_payment'])
         due_day = int(request.form.get('due_day', 1))
         alert_threshold = float(request.form.get('alert_threshold', 0)) if request.form.get('alert_threshold') else 0
+        credit_limit = float(request.form.get('credit_limit', 0)) if request.form.get('credit_limit') else 0
         
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO cards (name, balance, interest_rate, minimum_payment, due_day, alert_threshold)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (name, balance, interest_rate, minimum_payment, due_day, alert_threshold))
+            INSERT INTO cards (name, balance, interest_rate, minimum_payment, due_day, alert_threshold, credit_limit)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (name, balance, interest_rate, minimum_payment, due_day, alert_threshold, credit_limit))
         conn.commit()
         conn.close()
         
@@ -689,12 +708,13 @@ def edit_card(card_id):
         minimum_payment = float(request.form['minimum_payment'])
         due_day = int(request.form.get('due_day', 1))
         alert_threshold = float(request.form.get('alert_threshold', 0)) if request.form.get('alert_threshold') else 0
+        credit_limit = float(request.form.get('credit_limit', 0)) if request.form.get('credit_limit') else 0
         
         cursor.execute('''
             UPDATE cards 
-            SET name = ?, balance = ?, interest_rate = ?, minimum_payment = ?, due_day = ?, alert_threshold = ?
+            SET name = ?, balance = ?, interest_rate = ?, minimum_payment = ?, due_day = ?, alert_threshold = ?, credit_limit = ?
             WHERE id = ?
-        ''', (name, balance, interest_rate, minimum_payment, due_day, alert_threshold, card_id))
+        ''', (name, balance, interest_rate, minimum_payment, due_day, alert_threshold, credit_limit, card_id))
         conn.commit()
         conn.close()
         

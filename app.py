@@ -576,8 +576,8 @@ else:
 @login_required
 def index():
     # Auto-sync from Google Sheets on every page load
-    if sheets_config.SPREADSHEET_ID:
-        try:
+    try:
+        if hasattr(sheets_config, 'SPREADSHEET_ID') and sheets_config.SPREADSHEET_ID:
             cards = read_credit_card_balances()
             if cards:
                 conn = get_db()
@@ -599,8 +599,8 @@ def index():
                         ''', (card['name'], card['balance'], card['interest_rate'], card['due_day'], card['minimum_payment'], credit_limit))
                 conn.commit()
                 conn.close()
-        except Exception as e:
-            print(f"Auto-sync error: {e}")
+    except Exception as e:
+        print(f"Auto-sync error: {e}")
     
     conn = get_db()
     cursor = conn.cursor()

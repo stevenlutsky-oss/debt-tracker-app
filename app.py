@@ -1234,19 +1234,22 @@ def sheets_sync_balances():
         cursor.execute('SELECT id FROM cards WHERE name = ?', (card['name'],))
         existing = cursor.fetchone()
         
+        # Get credit_limit from card (default to 0 if not present)
+        credit_limit = card.get('credit_limit', 0)
+        
         if existing:
-            # Update existing card
+            # Update existing card (including credit_limit)
             cursor.execute('''
                 UPDATE cards 
-                SET balance = ?, interest_rate = ?, due_day = ?, minimum_payment = ?, last_synced = datetime('now')
+                SET balance = ?, interest_rate = ?, due_day = ?, minimum_payment = ?, credit_limit = ?, last_synced = datetime('now')
                 WHERE name = ?
-            ''', (card['balance'], card['interest_rate'], card['due_day'], card['minimum_payment'], card['name']))
+            ''', (card['balance'], card['interest_rate'], card['due_day'], card['minimum_payment'], credit_limit, card['name']))
         else:
             # Insert new card
             cursor.execute('''
-                INSERT INTO cards (name, balance, interest_rate, due_day, minimum_payment, last_synced)
-                VALUES (?, ?, ?, ?, ?, datetime('now'))
-            ''', (card['name'], card['balance'], card['interest_rate'], card['due_day'], card['minimum_payment']))
+                INSERT INTO cards (name, balance, interest_rate, due_day, minimum_payment, credit_limit, last_synced)
+                VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            ''', (card['name'], card['balance'], card['interest_rate'], card['due_day'], card['minimum_payment'], credit_limit))
         
         updated += 1
     

@@ -104,78 +104,144 @@
 {% endif %}
 
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h2>Your Credit Cards</h2>
-        <div>
-            <a href="/card/add" class="btn btn-success">+ Add Card</a>
-        </div>
+        <a href="/card/add" class="btn btn-success">+ Add Card</a>
     </div>
     
     {% if cards %}
-    <table>
-        <thead>
-            <tr>
-                <th>Card Name</th>
-                <th>Balance</th>
-                <th>Credit Limit</th>
-                <th>Available</th>
-                <th>APR</th>
-                <th>Monthly Interest</th>
-                <th>Min Payment</th>
-                <th>Due Day</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for card in cards %}
-            <tr>
-                <td><strong>{{ card.name }}</strong></td>
-                <td>{{ card.balance|currency }}</td>
-                <td>{% if card.get('credit_limit', 0) > 0 %}{{ card.get('credit_limit', 0)|currency }}{% else %}—{% endif %}</td>
-                <td>{% if card.get('credit_limit', 0) > 0 %}{{ (card.get('credit_limit', 0) - card.get('balance', 0))|currency }}{% else %}—{% endif %}</td>
-                <td>{{ "%.1f"|format(card.interest_rate) }}%</td>
-                <td style="color: #e74c3c;">{{ card.monthly_interest|currency }}</td>
-                <td>{{ card.minimum_payment|currency }}</td>
-                <td>{{ card.due_day }}{% if card.due_day == 1 %}st{% elif card.due_day == 2 %}nd{% elif card.due_day == 3 %}rd{% else %}th{% endif %}</td>
-                <td>
-                    <div class="actions">
-                        <a href="/card/{{ card.id }}/payment" class="btn btn-small">Payment</a>
-                        <a href="/card/{{ card.id }}/edit" class="btn btn-small">Edit</a>
-                        <a href="/card/{{ card.id }}/delete" class="btn btn-small btn-danger" onclick="return confirm('Are you sure?')">×</a>
-                    </div>
-                </td>
-            </tr>
-            {% if card.get('credit_limit', 0) > 0 %}
-            <tr>
-                <td colspan="8" style="padding-top: 0; padding-bottom: 15px;">
-                    <div style="background: #e0e0e0; border-radius: 5px; height: 12px; width: 100%; overflow: hidden;">
-                        {% set card_percent = ((card.get('credit_limit', 0) - card.get('balance', 0)) / card.get('credit_limit', 1) * 100) %}
-                        <div style="background: {% if card_percent > 50 %}#27ae60{% elif card_percent > 25 %}#f39c12{% else %}#e74c3c{% endif %}; height: 100%; width: {{ card_percent }}%;"></div>
-                    </div>
-                    <small style="color: #7f8c8d;">{{ card_percent|round(1) }}% available</small>
-                </td>
-            </tr>
-            {% endif %}
-            {% endfor %}
-            <tr class="total-row">
-                <td><strong>Total</strong></td>
-                <td><strong>{{ total_debt|currency }}</strong></td>
-                <td></td>
-                <td style="color: #e74c3c;"><strong>{{ total_interest|currency }}</strong></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-        </tbody>
-    </table>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+    {% for card in cards %}
+    <div class="card-pill" onclick="showCardDetail({{ card.id }})" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; cursor: pointer; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s, box-shadow 0.2s;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h3 style="margin: 0 0 10px 0; font-size: 18px; font-weight: 600;">{{ card.name }}</h3>
+                <div style="font-size: 28px; font-weight: bold; margin-bottom: 5px;">{{ card.balance|currency }}</div>
+                {% if card.get('credit_limit', 0) > 0 %}
+                <div style="font-size: 14px; opacity: 0.9;">{{ (card.get('credit_limit', 0) - card.get('balance', 0))|currency }} available</div>
+                {% endif %}
+            </div>
+            <div onclick="event.stopPropagation(); showMenu({{ card.id }})" style="background: rgba(255,255,255,0.2); padding: 8px; border-radius: 8px; cursor: pointer;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+            </div>
+        </div>
+        {% if card.get('credit_limit', 0) > 0 %}
+        {% set card_percent = ((card.get('credit_limit', 0) - card.get('balance', 0)) / card.get('credit_limit', 1) * 100) %}
+        <div style="background: rgba(255,255,255,0.3); border-radius: 6px; height: 8px; margin-top: 15px; overflow: hidden;">
+            <div style="background: {% if card_percent > 50 %}#27ae60{% elif card_percent > 25 %}#f39c12{% else %}#e74c3c{% endif %}; height: 100%; width: {{ card_percent }}%;"></div>
+        </div>
+        {% endif %}
+        <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; opacity: 0.9;">
+            <span>{{ card.interest_rate }}% APR</span>
+            <span>Due: {{ card.due_day }}{% if card.due_day == 1 %}st{% elif card.due_day == 2 %}nd{% elif card.due_day == 3 %}rd{% else %}th{% endif %}</span>
+        </div>
+    </div>
+    {% endfor %}
+    </div>
     {% else %}
     <p style="text-align: center; color: #7f8c8d; padding: 40px;">
         No cards added yet. <a href="/card/add">Add your first card</a> to start tracking!
     </p>
     {% endif %}
 </div>
+
+<!-- Card Detail Modal -->
+<div id="cardModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;" onclick="closeModal(event)">
+    <div style="background: white; margin: 20px auto; max-width: 500px; border-radius: 12px; padding: 25px; position: relative;" onclick="event.stopPropagation()">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 id="modalTitle" style="margin: 0;">Card Details</h2>
+            <button onclick="closeModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        <div id="modalContent"></div>
+    </div>
+</div>
+
+<!-- Hamburger Menu -->
+<div id="cardMenu" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;" onclick="closeMenu()">
+    <div style="background: white; position: absolute; bottom: 0; left: 0; right: 0; border-radius: 12px 12px 0 0; padding: 20px;" onclick="event.stopPropagation()">
+        <div style="text-align: center; margin-bottom: 15px; font-weight: bold;" id="menuCardName">Card</div>
+        <a href="#" id="menuEdit" class="btn" style="display: block; text-align: center; margin-bottom: 10px; background: #3498db; color: white;">✏️ Edit Card</a>
+        <a href="#" id="menuPayment" class="btn" style="display: block; text-align: center; margin-bottom: 10px; background: #27ae60; color: white;">💰 Record Payment</a>
+        <a href="#" id="menuDelete" class="btn" style="display: block; text-align: center; background: #e74c3c; color: white;" onclick="return confirm('Delete this card?')">🗑️ Delete Card</a>
+        <button onclick="closeMenu()" style="display: block; width: 100%; margin-top: 10px; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+    </div>
+</div>
+
+<script>
+var cardsData = {};
+{% for card in cards %}
+cardsData[{{ card.id }}] = {
+    name: "{{ card.name }}",
+    balance: {{ card.balance }},
+    credit_limit: {{ card.get('credit_limit', 0) }},
+    interest_rate: {{ card.interest_rate }},
+    minimum_payment: {{ card.minimum_payment }},
+    due_day: {{ card.due_day }},
+    monthly_interest: {{ card.monthly_interest }}
+};
+{% endfor %}
+
+function showCardDetail(id) {
+    var card = cardsData[id];
+    if (!card) return;
+    
+    var percent = card.credit_limit > 0 ? ((card.credit_limit - card.balance) / card.credit_limit * 100).toFixed(1) : 0;
+    var usedPercent = card.credit_limit > 0 ? (card.balance / card.credit_limit * 100).toFixed(1) : 0;
+    
+    var html = '<div style="text-align: center; margin-bottom: 20px;">' +
+        '<div style="font-size: 36px; font-weight: bold; color: #2c3e50;">' + card.balance.toLocaleString("en-US", {style: "currency", currency: "USD"}) + '</div>' +
+        '<div style="color: #7f8c8d;">Balance</div></div>' +
+        
+        '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">' +
+        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
+        '<div style="font-size: 18px; font-weight: bold;">' + card.interest_rate + '%</div><div style="font-size: 12px; color: #7f8c8d;">APR</div></div>' +
+        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
+        '<div style="font-size: 18px; font-weight: bold;">' + card.minimum_payment.toLocaleString("en-US", {style: "currency", currency: "USD"}) + '</div><div style="font-size: 12px; color: #7f8c8d;">Min Payment</div></div>' +
+        '</div>' +
+        
+        '<div style="margin-bottom: 20px;">' +
+        '<div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px;"><span>Credit Used</span><span>' + usedPercent + '%</span></div>' +
+        '<div style="background: #e0e0e0; border-radius: 8px; height: 20px; overflow: hidden;">' +
+        '<div style="background: ' + (usedPercent > 50 ? '#e74c3c' : '#27ae60') + '; height: 100%; width: ' + Math.min(usedPercent, 100) + '%;"></div></div></div>' +
+        
+        '<div style="margin-bottom: 20px;">' +
+        '<div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px;"><span>Payoff Progress</span><span>' + percent + '%</span></div>' +
+        '<div style="background: #e0e0e0; border-radius: 8px; height: 20px; overflow: hidden;">' +
+        '<div style="background: linear-gradient(90deg, #27ae60, #2ecc71); height: 100%; width: ' + percent + '%;"></div></div></div>' +
+        
+        '<div style="background: #fee; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
+        '<div style="color: #c00; font-weight: bold;">+$' + card.monthly_interest.toFixed(2) + '/month</div>' +
+        '<div style="font-size: 12px; color: #7f8c8d;">Interest accruing</div></div>' +
+        
+        '<div style="display: flex; gap: 10px;">' +
+        '<a href="/card/' + id + '/payment" class="btn" style="flex: 1; background: #27ae60; color: white; padding: 12px; text-align: center; border-radius: 8px; text-decoration: none;">💰 Payment</a>' +
+        '<a href="/card/' + id + '/edit" class="btn" style="flex: 1; background: #3498db; color: white; padding: 12px; text-align: center; border-radius: 8px; text-decoration: none;">✏️ Edit</a>' +
+        '</div>';
+    
+    document.getElementById('modalTitle').innerText = card.name;
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('cardModal').style.display = 'block';
+}
+
+function showMenu(id) {
+    var card = cardsData[id];
+    if (!card) return;
+    document.getElementById('menuCardName').innerText = card.name;
+    document.getElementById('menuEdit').href = '/card/' + id + '/edit';
+    document.getElementById('menuPayment').href = '/card/' + id + '/payment';
+    document.getElementById('menuDelete').href = '/card/' + id + '/delete';
+    document.getElementById('cardMenu').style.display = 'block';
+}
+
+function closeMenu() {
+    document.getElementById('cardMenu').style.display = 'none';
+}
+
+function closeModal(event) {
+    if (event) event.stopPropagation();
+    document.getElementById('cardModal').style.display = 'none';
+}
+</script>
 
 {% if recent_payments %}
 <div class="card">

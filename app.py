@@ -1636,6 +1636,13 @@ def send_alerts(api_key=None):
             return "Unauthorized", 401
     elif not session.get('logged_in'):
         return redirect(url_for('login'))
+    
+    # Sync from Google Sheets before checking alerts
+    try:
+        sync_from_sheets()
+    except Exception as e:
+        print(f"Sync error in alerts: {e}")
+    
     count = check_due_dates_and_alert()
     if api_key:
         # Return JSON for API calls

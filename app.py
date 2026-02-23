@@ -1697,3 +1697,17 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(debug=debug_mode, port=port, host='0.0.0.0')
+
+
+@app.route('/debug/cards')
+def debug_cards():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT name, due_day, balance FROM cards')
+    cards = cursor.fetchall()
+    conn.close()
+    result = "<h1>Cards</h1><ul>"
+    for c in cards:
+        result += f"<li>{c['name']}: due_day={c['due_day']}, balance={c['balance']}</li>"
+    result += "</ul>"
+    return result

@@ -741,7 +741,9 @@ def index(month=None, year=None):
     month_name = datetime(year, month, 1).strftime('%B %Y')
     
     # Get the day of week the month starts on (0=Sunday, 1=Monday, etc.)
-    first_day_of_week = datetime(year, month, 1).weekday()
+    # Python's weekday() returns Monday=0, Sunday=6, so convert to Sunday=0
+    python_weekday = datetime(year, month, 1).weekday()
+    first_day_of_week = (python_weekday + 1) % 7
     
     cards_with_interest = []
     for card in cards:
@@ -903,7 +905,9 @@ def api_calendar(month=None, year=None):
     month_name = datetime(year, month, 1).strftime('%B %Y')
     
     # Get the day of week the month starts on (0=Sunday, 1=Monday, etc.)
-    first_day_of_week = datetime(year, month, 1).weekday()
+    # Python's weekday() returns Monday=0, Sunday=6, so convert to Sunday=0
+    python_weekday = datetime(year, month, 1).weekday()
+    first_day_of_week = (python_weekday + 1) % 7
     
     # Get cards, expenses, paydays, and bank accounts
     conn = get_db()

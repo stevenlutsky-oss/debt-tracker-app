@@ -534,11 +534,11 @@ function loadCalendar(month, year) {
         border-radius: 8px;
         padding: 8px;
         min-height: 80px;
-        height: 80px;
         text-align: center;
         background: #fafafa;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
     }
     
     .calendar-day.today {
@@ -561,6 +561,8 @@ function loadCalendar(month, year) {
     .day-items {
         font-size: 10px;
         text-align: left;
+        overflow-y: auto;
+        flex: 1;
     }
     
     .day-item {
@@ -590,12 +592,6 @@ function loadCalendar(month, year) {
     .empty-day {
         background: transparent;
         border: none;
-    }
-    
-    @media (max-width: 768px) {
-        .calendar-grid {
-            grid-template-columns: repeat(4, 1fr);
-        }
     }
 </style>
 {% endblock %}

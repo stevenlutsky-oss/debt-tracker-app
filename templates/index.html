@@ -230,9 +230,18 @@ cardsData[{{ card.id }}] = {
     credit_limit: {{ card.get('credit_limit', 0) }},
     interest_rate: {{ card.interest_rate }},
     minimum_payment: {{ card.minimum_payment }},
+    next_payment: {{ card.get('next_payment', 0) }},
+    payment_type: "{{ card.get('payment_type', 'minimum') }}",
     due_day: {{ card.due_day }},
     monthly_interest: {{ card.monthly_interest }}
 };
+{% endfor %}
+
+var bankAccounts = {};
+var totalBankBalance = 0;
+{% for account in bank_accounts %}
+bankAccounts["{{ account.name }}"] = {{ account.balance }};
+totalBankBalance += {{ account.balance }};
 {% endfor %}
 
 var expensesData = {};
@@ -253,15 +262,33 @@ function showCardDetail(id) {
     var percent = card.credit_limit > 0 ? ((card.credit_limit - card.balance) / card.credit_limit * 100).toFixed(1) : 0;
     var usedPercent = card.credit_limit > 0 ? (card.balance / card.credit_limit * 100).toFixed(1) : 0;
     
+    var paymentAmount = card.payment_type === 'next_payment' ? card.next_payment : card.minimum_payment;
+    var balanceAfterPayment = totalBankBalance - paymentAmount;
+    var balanceAfterClass = balanceAfterPayment >= 3000 ? '#27ae60' : '#e74c3c';
+    
     var html = '<div style="text-align: center; margin-bottom: 20px;">' +
         '<div style="font-size: 36px; font-weight: bold; color: #2c3e50;">' + card.balance.toLocaleString("en-US", {style: "currency", currency: "USD"}) + '</div>' +
         '<div style="color: #7f8c8d;">Balance</div></div>' +
+        
+        '<div style="margin-bottom: 15px; padding: 12px; background: #e3f2fd; border-radius: 8px;">' +
+        '<div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">Payment Amount</div>' +
+        '<select id="paymentTypeSelect" onchange="updatePaymentType(' + id + ', this.value)" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 16px;">' +
+        '<option value="minimum" ' + (card.payment_type === 'minimum' ? 'selected' : '') + '>Minimum: ' + card.minimum_payment.toLocaleString("en-US", {style: "currency", currency: "USD"}) + '</option>' +
+        '<option value="next_payment" ' + (card.payment_type === 'next_payment' ? 'selected' : '') + '>Next Payment: ' + card.next_payment.toLocaleString("en-US", {style: "currency", currency: "USD"}) + '</option>' +
+        '</select>' +
+        '</div>' +
+        
+        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;">' +
+        '<div style="font-size: 14px; color: #7f8c8d;">Bank Balance After Payment</div>' +
+        '<div style="font-size: 28px; font-weight: bold; color: ' + balanceAfterClass + ';">' + balanceAfterPayment.toLocaleString("en-US", {style: "currency", currency: "USD"}) + '</div>' +
+        '<div style="font-size: 12px; color: ' + balanceAfterClass + ';">' + (balanceAfterPayment >= 3000 ? '✅ Above threshold' : '⚠️ Below $3,000') + '</div>' +
+        '</div>' +
         
         '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">' +
         '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
         '<div style="font-size: 18px; font-weight: bold;">' + card.interest_rate + '%</div><div style="font-size: 12px; color: #7f8c8d;">APR</div></div>' +
         '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
-        '<div style="font-size: 18px; font-weight: bold;">' + card.minimum_payment.toLocaleString("en-US", {style: "currency", currency: "USD"}) + '</div><div style="font-size: 12px; color: #7f8c8d;">Min Payment</div></div>' +
+        '<div style="font-size: 18px; font-weight: bold;">' + card.due_day + '</div><div style="font-size: 12px; color: #7f8c8d;">Due Day</div></div>' +
         '</div>' +
         
         '<div style="margin-bottom: 20px;">' +
@@ -342,6 +369,23 @@ function showExpenseDetail(id) {
 function closeExpenseModal(event) {
     if (event) event.stopPropagation();
     document.getElementById('expenseModal').style.display = 'none';
+}
+
+function updatePaymentType(cardId, paymentType) {
+    fetch('/card/' + cardId + '/payment-type', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({payment_type: paymentType})
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Update the card data
+        cardsData[cardId].payment_type = data.payment_type;
+        
+        // Refresh the modal to show updated bank balance
+        showCardDetail(cardId);
+    })
+    .catch(error => console.error('Error updating payment type:', error));
 }
 
 function loadCalendar(month, year) {

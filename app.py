@@ -205,13 +205,23 @@ def read_credit_card_balances():
                     except ValueError:
                         credit_limit = 0
                 
+                # Parse Next Payment Amount (column U)
+                next_payment = 0
+                if 'next_payment' in COLUMN_MAPPING and len(row) > COLUMN_MAPPING['next_payment']:
+                    next_str = row[COLUMN_MAPPING['next_payment']].replace('$', '').replace(',', '').strip()
+                    try:
+                        next_payment = float(next_str)
+                    except ValueError:
+                        next_payment = 0
+                
                 cards.append({
                     'name': card_name,
                     'balance': balance,
                     'interest_rate': apr,
                     'due_day': due_day,
                     'minimum_payment': min_payment,
-                    'credit_limit': credit_limit
+                    'credit_limit': credit_limit,
+                    'next_payment': next_payment
                 })
             
             return cards
@@ -453,6 +463,7 @@ def sync_from_sheets():
             
             # Get credit_limit from card (default to 0 if not present)
             credit_limit = card.get('credit_limit', 0)
+            next_payment = card.get('next_payment', 0)
             
             if existing:
                 # Get existing due_day to preserve if no valid new data
@@ -464,16 +475,16 @@ def sync_from_sheets():
                 due_day_to_set = card['due_day'] if card['due_day'] else existing_due_day
                 
                 cursor.execute(
-                    'UPDATE cards SET balance = ?, interest_rate = ?, due_day = ?, minimum_payment = ?, credit_limit = ?, last_synced = ? WHERE name = ?',
-                    (card['balance'], card['interest_rate'], due_day_to_set, card['minimum_payment'], credit_limit, datetime.now(), card['name'])
+                    'UPDATE cards SET balance = ?, interest_rate = ?, due_day = ?, minimum_payment = ?, credit_limit = ?, next_payment = ?, last_synced = ? WHERE name = ?',
+                    (card['balance'], card['interest_rate'], due_day_to_set, card['minimum_payment'], credit_limit, next_payment, datetime.now(), card['name'])
                 )
                 updated += 1
             else:
                 # Add new card - default due_day to 1 if not in Sheets
                 due_day_to_set = card['due_day'] if card['due_day'] else 1
                 cursor.execute(
-                    'INSERT INTO cards (name, balance, interest_rate, due_day, minimum_payment, credit_limit, last_synced) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    (card['name'], card['balance'], card['interest_rate'], due_day_to_set, card['minimum_payment'], credit_limit, datetime.now())
+                    'INSERT INTO cards (name, balance, interest_rate, due_day, minimum_payment, credit_limit, next_payment, last_synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    (card['name'], card['balance'], card['interest_rate'], due_day_to_set, card['minimum_payment'], credit_limit, next_payment, datetime.now())
                 )
                 added += 1
         
@@ -587,6 +598,18 @@ def migrate_db():
         cursor.execute('SELECT credit_limit FROM cards LIMIT 1')
     except:
         cursor.execute('ALTER TABLE cards ADD COLUMN credit_limit REAL')
+    
+    # Add next_payment field if it doesn't exist
+    try:
+        cursor.execute('SELECT next_payment FROM cards LIMIT 1')
+    except:
+        cursor.execute('ALTER TABLE cards ADD COLUMN next_payment REAL DEFAULT 0')
+    
+    # Add payment_type field if it doesn't exist ('minimum' or 'next_payment')
+    try:
+        cursor.execute('SELECT payment_type FROM cards LIMIT 1')
+    except:
+        cursor.execute("ALTER TABLE cards ADD COLUMN payment_type TEXT DEFAULT 'minimum'")
     
     # Create planned_expenses table if it doesn't exist
     cursor.execute('''
@@ -710,12 +733,24 @@ def index(month=None, year=None):
             except:
                 pass
         
+        # Get next_payment and payment_type (with defaults)
+        try:
+            next_payment = card['next_payment'] if card['next_payment'] else 0
+        except:
+            next_payment = 0
+        try:
+            payment_type = card['payment_type'] if card['payment_type'] else 'minimum'
+        except:
+            payment_type = 'minimum'
+        
         cards_with_interest.append({
             'id': card['id'],
             'name': card['name'],
             'balance': balance,
             'interest_rate': apr,
             'minimum_payment': card['minimum_payment'],
+            'next_payment': next_payment,
+            'payment_type': payment_type,
             'due_day': due_day,
             'alert_threshold': alert_threshold,
             'monthly_interest': monthly_interest,
@@ -911,6 +946,23 @@ def delete_card(card_id):
     
     flash('Card deleted successfully!', 'success')
     return redirect(url_for('index'))
+
+@app.route('/card/<int:card_id>/payment-type', methods=['POST'])
+@login_required
+def update_payment_type(card_id):
+    """Update the payment type preference for a card"""
+    payment_type = request.json.get('payment_type', 'minimum')
+    
+    if payment_type not in ['minimum', 'next_payment']:
+        payment_type = 'minimum'
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE cards SET payment_type = ? WHERE id = ?', (payment_type, card_id))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'payment_type': payment_type})
 
 @app.route('/card/<int:card_id>/payment', methods=['GET', 'POST'])
 @login_required
@@ -1648,7 +1700,7 @@ def check_due_dates_and_alert():
     today = datetime.now()
     alert_days = 7  # Check for cards due in next 7 days
     
-    cursor.execute('SELECT name, balance, due_day, minimum_payment, interest_rate FROM cards WHERE due_day > 0')
+    cursor.execute('SELECT name, balance, due_day, minimum_payment, next_payment, interest_rate, payment_type FROM cards WHERE due_day > 0')
     cards = cursor.fetchall()
     
     # Get planned expenses
@@ -1711,12 +1763,33 @@ def check_due_dates_and_alert():
                 return f"{n}rd"
             return f"{n}th"
         
+        # Determine which payment amount to use based on payment_type
+        try:
+            payment_type = card['payment_type'] if card['payment_type'] else 'minimum'
+        except:
+            payment_type = 'minimum'
+        try:
+            next_payment = card['next_payment'] if card['next_payment'] else 0
+        except:
+            next_payment = 0
+        
+        if payment_type == 'next_payment' and next_payment > 0:
+            payment_amount = next_payment
+            payment_label = f"Next Payment: ${next_payment:,.2f}"
+        else:
+            payment_amount = card['minimum_payment']
+            payment_label = f"Min Payment: ${card['minimum_payment']:,.2f}"
+        
         card_data = {
             'name': card['name'],
             'balance': card['balance'],
             'due_day': due_day,
             'due_day_ordinal': ordinal(due_day),
             'minimum_payment': card['minimum_payment'],
+            'next_payment': next_payment,
+            'payment_type': payment_type,
+            'payment_amount': payment_amount,
+            'payment_label': payment_label,
             'interest_rate': card['interest_rate'],
             'days_until': days_until
         }
@@ -1745,10 +1818,10 @@ def check_due_dates_and_alert():
     
     subject = f"💳 Debt Alert: {', '.join(subject_parts)}"
     
-    # Calculate totals
-    total_min = sum(c['minimum_payment'] for c in due_cards + overdue_cards)
+    # Calculate totals using the payment_type preference
+    total_card_payments = sum(c['payment_amount'] for c in due_cards + overdue_cards)
     total_balance = sum(c['balance'] for c in due_cards + overdue_cards)
-    total_min += total_planned_expenses  # Add planned expenses to total payments
+    total_min = total_card_payments + total_planned_expenses  # Add planned expenses to total payments
     
     # Get bank balance for summary
     bank_accounts = read_bank_accounts()
@@ -1796,7 +1869,7 @@ def check_due_dates_and_alert():
                 <div class="summary">
                     <h3>Payment Summary</h3>
                     <p>Total Due: <span class="total">${total_min:,.2f}</span></p>
-                    <p>Credit Card Payments: ${total_min - total_planned_expenses:,.2f}</p>
+                    <p>Credit Card Payments: ${total_card_payments:,.2f}</p>
                     <p>Planned Expenses: ${total_planned_expenses:,.2f}</p>
                     <p>Total Credit Card Balance: ${total_balance:,.2f}</p>
                     <p>🏦 Bank Balance: ${total_bank:,.2f}</p>
@@ -1821,7 +1894,7 @@ def check_due_dates_and_alert():
                     <tr class="overdue">
                         <td><strong>{card['name']}</strong></td>
                         <td>${card['balance']:,.2f}</td>
-                        <td>${card['minimum_payment']:,.2f}</td>
+                        <td>{card['payment_label']}</td>
                         <td class="due-text">{card['due_day']}st (OVERDUE)</td>
                     </tr>
             """
@@ -1848,7 +1921,7 @@ def check_due_dates_and_alert():
                         <td><strong>{card['name']}</strong></td>
                         <td>${card['balance']:,.2f}</td>
                         <td>{card['interest_rate']}%</td>
-                        <td>${card['minimum_payment']:,.2f}</td>
+                        <td>{card['payment_label']}</td>
                         <td class="due-text">{card['due_day_ordinal']} ({days_text})</td>
                     </tr>
             """

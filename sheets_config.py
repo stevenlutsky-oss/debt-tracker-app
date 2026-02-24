@@ -30,4 +30,5 @@ COLUMN_MAPPING = {
     'apr': 14,            # Column O - Liability Interest Rate
     'due_date': 17,       # Column R - Next Payment Due Date
     'minimum_payment': 19, # Column T - Minimum Payment Amount
+    'next_payment': 20,    # Column U - Next Monthly Payment Amount
 }

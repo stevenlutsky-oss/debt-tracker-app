@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Debt Tracker{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <h2>{{ icon }} {{ title }}</h2>
+    
+    <form method="POST" style="max-width: 500px;">
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Expense Name</label>
+            <input type="text" name="name" value="{{ expense.name if expense else '' }}" required 
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px;"
+                   placeholder="e.g., Rent, Car Payment, Netflix">
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Amount</label>
+            <input type="number" name="amount" value="{{ expense.amount if expense else '' }}" required step="0.01" min="0"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px;"
+                   placeholder="0.00">
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Due Day (1-31)</label>
+            <input type="number" name="due_day" value="{{ expense.due_day if expense else '1' }}" required min="1" max="31"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px;">
+            <small style="color: #7f8c8d;">Day of month this expense is due</small>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Icon</label>
+            <div class="icon-selector" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                {% for icon in icons %}
+                <button type="button" class="icon-option {% if expense and expense.icon == icon %}selected{% endif %}" 
+                        onclick="selectIcon('{{ icon }}')" style="font-size: 24px; padding: 8px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer;">
+                    {{ icon }}
+                </button>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="icon" id="iconInput" value="{{ expense.icon if expense else '📦' }}">
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Category (optional)</label>
+            <input type="text" name="category" value="{{ expense.category if expense else '' }}"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px;"
+                   placeholder="e.g., Housing, Transportation, Subscriptions">
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn" style="background: #27ae60; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; font-weight: bold;">
+                {{ 'Update' if expense else 'Add' }} Expense
+            </button>
+            <a href="/expenses" class="btn" style="background: #95a5a6; color: white; padding: 12px 24px; border-radius: 5px; text-decoration: none; font-weight: bold;">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    function selectIcon(icon) {
+        document.getElementById('iconInput').value = icon;
+        
+        // Update visual selection
+        document.querySelectorAll('.icon-option').forEach(btn => {
+            btn.classList.remove('selected');
+            btn.style.borderColor = '#ddd';
+            btn.style.background = 'white';
+        });
+        
+        event.target.classList.add('selected');
+        event.target.style.borderColor = '#27ae60';
+        event.target.style.background = '#e8f5e9';
+    }
+    
+    // Initialize selected icon on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectedIcon = document.getElementById('iconInput').value;
+        document.querySelectorAll('.icon-option').forEach(btn => {
+            if (btn.textContent.trim() === selectedIcon) {
+                btn.classList.add('selected');
+                btn.style.borderColor = '#27ae60';
+                btn.style.background = '#e8f5e9';
+            }
+        });
+    });
+</script>
+
+<style>
+    .icon-option:hover {
+        transform: scale(1.1);
+    }
+    
+    .icon-option.selected {
+        border-color: #27ae60 !important;
+        background: #e8f5e9 !important;
+    }
+</style>
+
+{% endblock %}

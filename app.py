@@ -588,6 +588,20 @@ def migrate_db():
     except:
         cursor.execute('ALTER TABLE cards ADD COLUMN credit_limit REAL')
     
+    # Create planned_expenses table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS planned_expenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            amount REAL NOT NULL,
+            due_day INTEGER DEFAULT 1,
+            icon TEXT DEFAULT '📦',
+            category TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -873,6 +887,108 @@ def sync_card(card_id):
     
     conn.close()
     return redirect(url_for('index'))
+
+# ============= PLANNED EXPENSES ROUTES =============
+
+@app.route('/expenses')
+@login_required
+def expenses():
+    """Show all planned expenses"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM planned_expenses WHERE is_active = 1 ORDER BY due_day ASC')
+    expense_list = cursor.fetchall()
+    
+    # Calculate totals
+    total_monthly = sum(e['amount'] for e in expense_list)
+    
+    # Group by due day for calendar view
+    expenses_by_day = {}
+    for e in expense_list:
+        day = e['due_day']
+        if day not in expenses_by_day:
+            expenses_by_day[day] = []
+        expenses_by_day[day].append(e)
+    
+    conn.close()
+    
+    return render_template('expenses.html', expenses=expense_list, 
+                           total_monthly=total_monthly,
+                           expenses_by_day=expenses_by_day)
+
+@app.route('/expenses/add', methods=['GET', 'POST'])
+@login_required
+def add_expense():
+    """Add a new planned expense"""
+    if request.method == 'POST':
+        name = request.form['name']
+        amount = float(request.form['amount'])
+        due_day = int(request.form.get('due_day', 1))
+        icon = request.form.get('icon', '📦')
+        category = request.form.get('category', '')
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO planned_expenses (name, amount, due_day, icon, category)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (name, amount, due_day, icon, category))
+        conn.commit()
+        conn.close()
+        
+        flash(f'Expense "{name}" added successfully!', 'success')
+        return redirect(url_for('expenses'))
+    
+    # Default icon suggestions
+    icon_suggestions = ['🏠', '🚗', '🏥', '💊', '📱', '💡', '🏋️', '🎮', '🐕', '💳', '📚', '✈️']
+    return render_template('expense_form.html', expense=None, title='Add Planned Expense', icons=icon_suggestions)
+
+@app.route('/expenses/<int:expense_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_expense(expense_id):
+    """Edit an existing planned expense"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    if request.method == 'POST':
+        name = request.form['name']
+        amount = float(request.form['amount'])
+        due_day = int(request.form.get('due_day', 1))
+        icon = request.form.get('icon', '📦')
+        category = request.form.get('category', '')
+        
+        cursor.execute('''
+            UPDATE planned_expenses 
+            SET name = ?, amount = ?, due_day = ?, icon = ?, category = ?
+            WHERE id = ?
+        ''', (name, amount, due_day, icon, category, expense_id))
+        conn.commit()
+        conn.close()
+        
+        flash(f'Expense "{name}" updated successfully!', 'success')
+        return redirect(url_for('expenses'))
+    
+    cursor.execute('SELECT * FROM planned_expenses WHERE id = ?', (expense_id,))
+    expense = cursor.fetchone()
+    conn.close()
+    
+    icon_suggestions = ['🏠', '🚗', '🏥', '💊', '📱', '💡', '🏋️', '🎮', '🐕', '💳', '📚', '✈️']
+    return render_template('expense_form.html', expense=expense, title='Edit Planned Expense', icons=icon_suggestions)
+
+@app.route('/expenses/<int:expense_id>/delete')
+@login_required
+def delete_expense(expense_id):
+    """Soft delete a planned expense"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('UPDATE planned_expenses SET is_active = 0 WHERE id = ?', (expense_id,))
+    conn.commit()
+    conn.close()
+    
+    flash('Expense deleted successfully!', 'success')
+    return redirect(url_for('expenses'))
 
 # ============= PLAID LINK ROUTES =============
 
@@ -1434,6 +1550,36 @@ def check_due_dates_and_alert():
     cursor.execute('SELECT name, balance, due_day, minimum_payment, interest_rate FROM cards WHERE due_day > 0')
     cards = cursor.fetchall()
     
+    # Get planned expenses
+    cursor.execute('SELECT * FROM planned_expenses WHERE is_active = 1 ORDER BY due_day ASC')
+    planned_expenses = cursor.fetchall()
+    
+    # Calculate planned expenses due this week
+    due_expenses = []
+    for expense in planned_expenses:
+        due_day = expense['due_day']
+        if today.day <= due_day:
+            days_until = due_day - today.day
+        else:
+            # Due next month
+            if today.month == 12:
+                next_month = datetime(today.year + 1, 1, 1)
+            else:
+                next_month = datetime(today.year, today.month + 1, 1)
+            days_in_month = (next_month - datetime(today.year, today.month, 1)).days
+            days_until = (days_in_month - today.day) + due_day
+        
+        expense_data = {
+            'name': expense['name'],
+            'amount': expense['amount'],
+            'due_day': due_day,
+            'icon': expense['icon'],
+            'days_until': days_until
+        }
+        
+        if days_until <= alert_days:
+            due_expenses.append(expense_data)
+    
     due_cards = []
     overdue_cards = []
     for card in cards:
@@ -1481,7 +1627,10 @@ def check_due_dates_and_alert():
     
     conn.close()
     
-    if not due_cards and not overdue_cards:
+    # Calculate planned expenses total for this period
+    total_planned_expenses = sum(e['amount'] for e in due_expenses)
+    
+    if not due_cards and not overdue_cards and not due_expenses:
         return 0
     
     # Build nicely formatted email
@@ -1490,12 +1639,15 @@ def check_due_dates_and_alert():
         subject_parts.append(f"{len(overdue_cards)} overdue")
     if due_cards:
         subject_parts.append(f"{len(due_cards)} due this week")
+    if due_expenses:
+        subject_parts.append(f"{len(due_expenses)} planned expenses")
     
     subject = f"💳 Debt Alert: {', '.join(subject_parts)}"
     
     # Calculate totals
     total_min = sum(c['minimum_payment'] for c in due_cards + overdue_cards)
     total_balance = sum(c['balance'] for c in due_cards + overdue_cards)
+    total_min += total_planned_expenses  # Add planned expenses to total payments
     
     # Get bank balance for summary
     bank_accounts = read_bank_accounts()
@@ -1543,6 +1695,8 @@ def check_due_dates_and_alert():
                 <div class="summary">
                     <h3>Payment Summary</h3>
                     <p>Total Due: <span class="total">${total_min:,.2f}</span></p>
+                    <p>Credit Card Payments: ${total_min - total_planned_expenses:,.2f}</p>
+                    <p>Planned Expenses: ${total_planned_expenses:,.2f}</p>
                     <p>Total Credit Card Balance: ${total_balance:,.2f}</p>
                     <p>🏦 Bank Balance: ${total_bank:,.2f}</p>
                     <p>💰 Balance After Payments: ${balance_after_payments:,.2f}</p>
@@ -1598,6 +1752,45 @@ def check_due_dates_and_alert():
                     </tr>
             """
         body += """
+                </table>
+        """
+    
+    # Add planned expenses section
+    if due_expenses:
+        total_monthly_expenses = sum(e['amount'] for e in planned_expenses)
+        body += f"""
+                <h2>📋 Planned Expenses (This Week)</h2>
+                <table>
+                    <tr>
+                        <th></th>
+                        <th>Expense</th>
+                        <th>Amount</th>
+                        <th>Due Date</th>
+                    </tr>
+        """
+        for expense in sorted(due_expenses, key=lambda x: x['days_until']):
+            days_text = "Due today!" if expense['days_until'] == 0 else f"Due in {expense['days_until']} days"
+            body += f"""
+                    <tr>
+                        <td style="font-size: 20px;">{expense['icon']}</td>
+                        <td><strong>{expense['name']}</strong></td>
+                        <td>${expense['amount']:,.2f}</td>
+                        <td class="due-text">{expense['due_day']}th ({days_text})</td>
+                    </tr>
+            """
+        body += f"""
+                    <tr style="font-weight: bold; background: #f0f0f0;">
+                        <td></td>
+                        <td>Total This Week</td>
+                        <td>${total_planned_expenses:,.2f}</td>
+                        <td></td>
+                    </tr>
+                    <tr style="font-weight: bold; background: #e3f2fd;">
+                        <td></td>
+                        <td>Total Monthly</td>
+                        <td>${total_monthly_expenses:,.2f}</td>
+                        <td></td>
+                    </tr>
                 </table>
         """
     

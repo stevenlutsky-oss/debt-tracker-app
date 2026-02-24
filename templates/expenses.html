@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Planned Expenses - Debt Tracker{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <h2>📋 Planned Expenses</h2>
+        <a href="/expenses/add" class="btn" style="background: #27ae60; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold;">+ Add Expense</a>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Monthly Total</h3>
+        <div class="value">{{ total_monthly|currency }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Total Expenses</h3>
+        <div class="value">{{ expenses|length }}</div>
+    </div>
+</div>
+
+{% if expenses %}
+<div class="card">
+    <h3>💰 All Planned Expenses</h3>
+    <div class="expense-grid">
+        {% for expense in expenses %}
+        <div class="expense-card">
+            <div class="expense-header">
+                <span class="expense-icon">{{ expense.icon }}</span>
+                <div class="expense-actions">
+                    <a href="/expenses/{{ expense.id }}/edit" class="icon-btn" title="Edit">✏️</a>
+                    <a href="/expenses/{{ expense.id }}/delete" class="icon-btn" title="Delete" onclick="return confirm('Delete this expense?')">🗑️</a>
+                </div>
+            </div>
+            <div class="expense-name">{{ expense.name }}</div>
+            <div class="expense-amount">{{ expense.amount|currency }}</div>
+            <div class="expense-due">Due: {{ expense.due_day }}{{ expense.due_day|ordinal_filter }}</div>
+            {% if expense.category %}
+            <div class="expense-category">{{ expense.category }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if expenses_by_day %}
+<div class="card">
+    <h3>📅 Due This Month</h3>
+    <div class="calendar-grid">
+        {% for day in range(1, 32) %}
+            {% if day in expenses_by_day %}
+            <div class="calendar-day has-expenses">
+                <div class="day-number">{{ day }}</div>
+                <div class="day-expenses">
+                    {% for exp in expenses_by_day[day] %}
+                    <div class="day-expense" title="{{ exp.name }}: {{ exp.amount|currency }}">
+                        <span>{{ exp.icon }}</span> {{ exp.amount|currency }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="calendar-day empty">
+                <div class="day-number">{{ day }}</div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="card" style="text-align: center; padding: 40px;">
+    <p style="color: #7f8c8d; font-size: 18px;">No planned expenses yet.</p>
+    <p style="color: #95a5a6;">Add your rent, car payments, subscriptions, etc.</p>
+    <a href="/expenses/add" class="btn" style="background: #27ae60; color: white; padding: 12px 24px; border-radius: 5px; text-decoration: none; display: inline-block; margin-top: 15px; font-weight: bold;">+ Add Your First Expense</a>
+</div>
+{% endif %}
+
+<style>
+    .expense-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .expense-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 20px;
+        color: white;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .expense-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    
+    .expense-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .expense-icon {
+        font-size: 32px;
+    }
+    
+    .expense-actions {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .icon-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        border-radius: 5px;
+        padding: 5px 8px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        transition: background 0.2s;
+    }
+    
+    .icon-btn:hover {
+        background: rgba(255,255,255,0.3);
+    }
+    
+    .expense-name {
+        font-size: 18px;
+        font-weight: bold;
+        margin-top: 10px;
+    }
+    
+    .expense-amount {
+        font-size: 28px;
+        font-weight: bold;
+        margin: 5px 0;
+    }
+    
+    .expense-due {
+        font-size: 14px;
+        opacity: 0.9;
+    }
+    
+    .expense-category {
+        font-size: 12px;
+        background: rgba(255,255,255,0.2);
+        padding: 3px 8px;
+        border-radius: 10px;
+        display: inline-block;
+        margin-top: 8px;
+    }
+    
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+        margin-top: 15px;
+    }
+    
+    .calendar-day {
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 8px;
+        min-height: 60px;
+        text-align: center;
+    }
+    
+    .calendar-day.empty {
+        background: #f9f9f9;
+        color: #ccc;
+    }
+    
+    .calendar-day.has-expenses {
+        background: #e8f5e9;
+        border-color: #4caf50;
+    }
+    
+    .day-number {
+        font-weight: bold;
+        font-size: 14px;
+        color: #333;
+    }
+    
+    .day-expenses {
+        margin-top: 5px;
+        font-size: 11px;
+    }
+    
+    .day-expense {
+        background: white;
+        border-radius: 3px;
+        padding: 2px 4px;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    @media (max-width: 600px) {
+        .calendar-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+</style>
+
+{% endblock %}

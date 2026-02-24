@@ -139,13 +139,21 @@
                     </div>
                     {% endif %}
                 {% endfor %}
+                {% for payday in paydays %}
+                    {% if payday.actual_day == day %}
+                    <div class="day-item payday-item" style="background: #e8f5e9; border-left: 3px solid #27ae60;" title="Payday: {{ payday.name }} - {{ payday.amount|currency }}">
+                        💰 {{ payday.amount|currency }}
+                    </div>
+                    {% endif %}
+                {% endfor %}
                 </div>
             </div>
         {% endfor %}
     </div>
-    <div style="margin-top: 15px; display: flex; gap: 20px; font-size: 13px;">
-        <span><span style="display: inline-block; width: 12px; height: 12px; background: #e3f2fd; border: 2px solid #1976d2; border-radius: 3px; margin-right: 5px;"></span>Credit Card (click for details)</span>
-        <span><span style="display: inline-block; width: 12px; height: 12px; background: #f3e5f5; border: 2px solid #7b1fa2; border-radius: 3px; margin-right: 5px;"></span>Planned Expense (click for details)</span>
+    <div style="margin-top: 15px; display: flex; gap: 20px; font-size: 13px; flex-wrap: wrap;">
+        <span><span style="display: inline-block; width: 12px; height: 12px; background: #e8f5e9; border: 2px solid #27ae60; border-radius: 3px; margin-right: 5px;"></span>Payday</span>
+        <span><span style="display: inline-block; width: 12px; height: 12px; background: #e3f2fd; border: 2px solid #1976d2; border-radius: 3px; margin-right: 5px;"></span>Credit Card</span>
+        <span><span style="display: inline-block; width: 12px; height: 12px; background: #f3e5f5; border: 2px solid #7b1fa2; border-radius: 3px; margin-right: 5px;"></span>Planned Expense</span>
         {% if today_day %}
         <span><span style="display: inline-block; width: 12px; height: 12px; background: #fff3e0; border: 2px solid #f57c00; border-radius: 3px; margin-right: 5px;"></span>Today</span>
         {% endif %}

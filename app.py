@@ -852,7 +852,7 @@ def index(month=None, year=None):
                            first_day_of_week=first_day_of_week,
                            prev_month=prev_month, prev_year=prev_year, 
                            next_month=next_month_calc, next_year=next_year,
-                           month_name=month_name)
+                           month_name=month_name, paydays=paydays_with_days)
 
 @app.route('/api/calendar')
 @app.route('/api/calendar/<int:month>/<int:year>')
@@ -898,6 +898,13 @@ def api_calendar(month=None, year=None):
     cursor.execute('SELECT * FROM paydays WHERE is_active = 1 ORDER BY day ASC')
     paydays = cursor.fetchall()
     conn.close()
+    
+    # Calculate actual days for paydays based on type
+    paydays_with_days = []
+    for p in paydays:
+        p_dict = dict(p)
+        p_dict['actual_day'] = get_payday_day(p, month, year)
+        paydays_with_days.append(p_dict)
     
     # Get bank accounts for balance
     bank_accounts = read_bank_accounts()

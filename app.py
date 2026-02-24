@@ -2236,6 +2236,210 @@ def check_due_dates_and_alert():
     
     return len(due_cards) + len(overdue_cards)
 
+def send_daily_preview():
+    """Send a daily email preview of tomorrow's payments"""
+    if not EMAIL_AVAILABLE or not hasattr(email_config, 'TO_EMAIL') or not email_config.TO_EMAIL:
+        return 0
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    today = datetime.now()
+    tomorrow = today + timedelta(days=1)
+    tomorrow_day = tomorrow.day
+    
+    # Get cards due tomorrow
+    cursor.execute('''SELECT name, balance, due_day, minimum_payment, next_payment, payment_type 
+                     FROM cards WHERE due_day = ?''', (tomorrow_day,))
+    cards = cursor.fetchall()
+    
+    # Get planned expenses due tomorrow
+    cursor.execute('''SELECT * FROM planned_expenses 
+                     WHERE is_active = 1 AND due_day = ?''', (tomorrow_day,))
+    expenses = cursor.fetchall()
+    
+    # Get paydays for tomorrow
+    cursor.execute('SELECT * FROM paydays WHERE is_active = 1')
+    all_paydays = cursor.fetchall()
+    
+    paydays_tomorrow = []
+    for payday in all_paydays:
+        payday_dict = dict(payday)
+        payday_type = payday_dict.get('payday_type', 'day_of_month')
+        if payday_type == 'day_of_month':
+            if payday_dict['day'] == tomorrow_day:
+                paydays_tomorrow.append(payday_dict)
+        elif payday_type == 'second_friday':
+            payday_day = get_payday_day(payday_dict, tomorrow.month, tomorrow.year)
+            if payday_day == tomorrow_day:
+                paydays_tomorrow.append(payday_dict)
+        elif payday_type == 'last_friday':
+            payday_day = get_payday_day(payday_dict, tomorrow.month, tomorrow.year)
+            if payday_day == tomorrow_day:
+                paydays_tomorrow.append(payday_dict)
+    
+    conn.close()
+    
+    # Check if there's anything due tomorrow
+    cards_tomorrow = []
+    for card in cards:
+        payment_type = card.get('payment_type', 'minimum')
+        if payment_type == 'next_payment' and card.get('next_payment', 0) > 0:
+            payment_amount = card['next_payment']
+            payment_label = f"Next: ${payment_amount:,.2f}"
+        else:
+            payment_amount = card['minimum_payment']
+            payment_label = f"Min: ${payment_amount:,.2f}"
+        
+        cards_tomorrow.append({
+            'name': card['name'],
+            'balance': card['balance'],
+            'due_day': card['due_day'],
+            'payment_amount': payment_amount,
+            'payment_label': payment_label
+        })
+    
+    expenses_tomorrow = [{'name': e['name'], 'amount': e['amount'], 'icon': e['icon']} for e in expenses]
+    paydays_tomorrow_list = [{'name': p['name'], 'amount': p['amount']} for p in paydays_tomorrow]
+    
+    if not cards_tomorrow and not expenses_tomorrow and not paydays_tomorrow_list:
+        return 0  # Nothing due tomorrow, don't send email
+    
+    # Calculate totals
+    total_payments = sum(c['payment_amount'] for c in cards_tomorrow) + sum(e['amount'] for e in expenses_tomorrow)
+    total_income = sum(p['amount'] for p in paydays_tomorrow_list)
+    
+    # Get bank balance
+    bank_accounts = read_bank_accounts()
+    total_bank = sum(a['balance'] for a in bank_accounts) if bank_accounts else 0
+    balance_after = total_bank - total_payments + total_income
+    
+    # Build email
+    subject = f"📅 Daily Preview: {tomorrow.strftime('%A, %B %d')} - {len(cards_tomorrow)} payment(s) due"
+    
+    body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: #2c3e50; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+            .content {{ background: #f8f9fa; padding: 20px; }}
+            .summary {{ background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+            .summary h3 {{ margin: 0 0 10px 0; color: #2c3e50; }}
+            .total {{ font-size: 24px; font-weight: bold; }}
+            table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; margin-bottom: 20px; }}
+            th {{ background: #34495e; color: white; padding: 12px; text-align: left; }}
+            td {{ padding: 12px; border-bottom: 1px solid #eee; }}
+            .income {{ background: #e8f5e9; }}
+            .payment {{ background: #ffebee; }}
+            .footer {{ background: #2c3e50; color: #bdc3c7; padding: 15px; text-align: center; border-radius: 0 0 8px 8px; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>📅 Daily Payment Preview</h1>
+                <p>{tomorrow.strftime('%A, %B %d, %Y')}</p>
+            </div>
+            <div class="content">
+                <div class="summary">
+                    <h3>Summary for Tomorrow</h3>
+                    <p>🏦 Current Bank Balance: <strong>${total_bank:,.2f}</strong></p>
+                    <p>📤 Total Payments Due: <strong class="total" style="color: #e74c3c;">-${total_payments:,.2f}</strong></p>
+                    <p>💰 Total Income: <strong class="total" style="color: #27ae60;">+${total_income:,.2f}</strong></p>
+                    <p>💵 Expected Balance After: <strong>${balance_after:,.2f}</strong></p>
+                </div>
+    """
+    
+    if paydays_tomorrow_list:
+        body += """
+                <h2>💰 Paydays Tomorrow</h2>
+                <table>
+                    <tr>
+                        <th>Payday</th>
+                        <th>Amount</th>
+                    </tr>
+        """
+        for payday in paydays_tomorrow_list:
+            body += f"""
+                    <tr class="income">
+                        <td><strong>{payday['name']}</strong></td>
+                        <td style="color: #27ae60; font-weight: bold;">+${payday['amount']:,.2f}</td>
+                    </tr>
+            """
+        body += """
+                </table>
+        """
+    
+    if cards_tomorrow:
+        body += """
+                <h2>💳 Credit Card Payments Due</h2>
+                <table>
+                    <tr>
+                        <th>Card</th>
+                        <th>Balance</th>
+                        <th>Payment</th>
+                    </tr>
+        """
+        for card in cards_tomorrow:
+            body += f"""
+                    <tr class="payment">
+                        <td><strong>{card['name']}</strong></td>
+                        <td>${card['balance']:,.2f}</td>
+                        <td>{card['payment_label']}</td>
+                    </tr>
+            """
+        body += """
+                </table>
+        """
+    
+    if expenses_tomorrow:
+        body += """
+                <h2>📦 Planned Expenses Due</h2>
+                <table>
+                    <tr>
+                        <th>Expense</th>
+                        <th>Amount</th>
+                    </tr>
+        """
+        for exp in expenses_tomorrow:
+            body += f"""
+                    <tr class="payment">
+                        <td><strong>{exp['icon']} {exp['name']}</strong></td>
+                        <td>${exp['amount']:,.2f}</td>
+                    </tr>
+            """
+        body += """
+                </table>
+        """
+    
+    body += """
+            </div>
+            <div class="footer">
+                <p>Sent automatically by Debt Tracker</p>
+                <p><a href="https://debt-tracker.fly.dev">View Dashboard</a></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    send_email_alert(subject, body)
+    
+    return len(cards_tomorrow) + len(expenses_tomorrow) + len(paydays_tomorrow_list)
+
+@app.route('/email/daily-preview')
+@app.route('/email/daily-preview/<api_key>')
+def daily_preview(api_key=None):
+    """Send daily preview email of tomorrow's payments - for cron jobs"""
+    count = send_daily_preview()
+    if count > 0:
+        return f"Sent daily preview with {count} item(s)"
+    else:
+        return "No payments due tomorrow, no email sent"
+
 @app.route('/email/test')
 @login_required
 def test_email():

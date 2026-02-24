@@ -108,12 +108,12 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <h2>📅 Payment Calendar</h2>
         <div style="display: flex; align-items: center; gap: 10px;">
-            <a href="/calendar/{{ prev_month }}/{{ prev_year }}" style="text-decoration: none; font-size: 20px;">◀</a>
-            <span style="font-weight: bold; font-size: 16px;">{{ month_name }}</span>
-            <a href="/calendar/{{ next_month }}/{{ next_year }}" style="text-decoration: none; font-size: 20px;">▶</a>
+            <button onclick="loadCalendar({{ prev_month }}, {{ prev_year }})" style="background: none; border: none; font-size: 20px; cursor: pointer;">◀</button>
+            <span id="calendarMonthName" style="font-weight: bold; font-size: 16px;">{{ month_name }}</span>
+            <button onclick="loadCalendar({{ next_month }}, {{ next_year }})" style="background: none; border: none; font-size: 20px; cursor: pointer;">▶</button>
         </div>
     </div>
-    <div class="calendar-grid">
+    <div id="calendarGrid" class="calendar-grid" data-month="{{ current_month }}" data-year="{{ current_year }}">
         {% for day in range(1, days_in_month + 1) %}
             <div class="calendar-day {% if today_day and day == today_day %}today{% endif %}">
                 <div class="day-number">{{ day }}</div>
@@ -343,6 +343,65 @@ function closeExpenseModal(event) {
     if (event) event.stopPropagation();
     document.getElementById('expenseModal').style.display = 'none';
 }
+
+function loadCalendar(month, year) {
+    fetch('/api/calendar/' + month + '/' + year)
+        .then(response => response.json())
+        .then(data => {
+            // Update month name
+            document.getElementById('calendarMonthName').innerText = data.month_name;
+            
+            // Rebuild calendar grid
+            var grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+            
+            for (var day = 1; day <= data.days_in_month; day++) {
+                var dayDiv = document.createElement('div');
+                dayDiv.className = 'calendar-day';
+                if (data.today_day && day === data.today_day) {
+                    dayDiv.classList.add('today');
+                }
+                
+                var dayNum = document.createElement('div');
+                dayNum.className = 'day-number';
+                dayNum.innerText = day;
+                dayDiv.appendChild(dayNum);
+                
+                var itemsDiv = document.createElement('div');
+                itemsDiv.className = 'day-items';
+                
+                // Check cards
+                data.cards.forEach(function(card) {
+                    if (card.due_day === day) {
+                        var item = document.createElement('div');
+                        item.className = 'day-item card-item';
+                        item.style.cursor = 'pointer';
+                        item.title = 'Credit Card: ' + card.name + ' - Click for details';
+                        item.innerHTML = '💳 ' + card.name;
+                        item.onclick = (function(id) { return function() { showCardDetail(id); }; })(card.id);
+                        itemsDiv.appendChild(item);
+                    }
+                });
+                
+                // Check expenses
+                data.expenses.forEach(function(exp) {
+                    if (exp.due_day === day) {
+                        var item = document.createElement('div');
+                        item.className = 'day-item expense-item';
+                        item.style.cursor = 'pointer';
+                        item.title = 'Planned Expense: ' + exp.name + ' - Click for details';
+                        item.innerHTML = exp.icon + ' ' + exp.name;
+                        item.onclick = (function(id) { return function() { showExpenseDetail(id); }; })(exp.id);
+                        itemsDiv.appendChild(item);
+                    }
+                });
+                
+                dayDiv.appendChild(itemsDiv);
+                grid.appendChild(dayDiv);
+            }
+        })
+        .catch(error => console.error('Error loading calendar:', error));
+}
 </script>
 
 {% if recent_payments %}
@@ -380,9 +439,12 @@ function closeExpenseModal(event) {
         border: 1px solid #e0e0e0;
         border-radius: 8px;
         padding: 8px;
-        min-height: 50px;
+        min-height: 80px;
+        height: 80px;
         text-align: center;
         background: #fafafa;
+        display: flex;
+        flex-direction: column;
     }
     
     .calendar-day.today {

@@ -765,6 +765,63 @@ def index(month=None, year=None):
                            next_month=next_month_calc, next_year=next_year,
                            month_name=month_name)
 
+@app.route('/api/calendar')
+@app.route('/api/calendar/<int:month>/<int:year>')
+@login_required
+def api_calendar(month=None, year=None):
+    """API endpoint for calendar data"""
+    today = datetime.now()
+    
+    if month is None:
+        month = today.month
+    if year is None:
+        year = today.year
+    
+    # Get days in the selected month
+    if month == 12:
+        next_month = datetime(year + 1, 1, 1)
+    else:
+        next_month = datetime(year, month + 1, 1)
+    days_in_month = (next_month - datetime(year, month, 1)).days
+    
+    # Calculate prev/next
+    if month == 1:
+        prev_month, prev_year = 12, year - 1
+    else:
+        prev_month, prev_year = month - 1, year
+    if month == 12:
+        next_month_calc, next_year = 1, year + 1
+    else:
+        next_month_calc, next_year = month + 1, year
+    
+    month_name = datetime(year, month, 1).strftime('%B %Y')
+    
+    # Get cards and expenses
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM cards ORDER BY due_day ASC')
+    cards = cursor.fetchall()
+    cursor.execute('SELECT * FROM planned_expenses WHERE is_active = 1 ORDER BY due_day ASC')
+    expenses = cursor.fetchall()
+    conn.close()
+    
+    is_current_month = (month == today.month and year == today.year)
+    today_day = today.day if is_current_month else None
+    
+    return jsonify({
+        'month': month,
+        'year': year,
+        'month_name': month_name,
+        'days_in_month': days_in_month,
+        'prev_month': prev_month,
+        'prev_year': prev_year,
+        'next_month': next_month_calc,
+        'next_year': next_year,
+        'today_day': today_day,
+        'cards': [{'id': c['id'], 'name': c['name'], 'due_day': c['due_day']} for c in cards],
+        'expenses': [{'id': e['id'], 'name': e['name'], 'amount': e['amount'], 'due_day': e['due_day'], 'icon': e['icon']} for e in expenses]
+    })
+
 @app.route('/calendar')
 @app.route('/calendar/<int:month>/<int:year>')
 @login_required

@@ -109,58 +109,19 @@
     <p style="color: #7f8c8d; margin-bottom: 15px;">Due dates for this month</p>
     <div class="calendar-grid">
         {% for day in range(1, 32) %}
-            {% set has_card = false %}
-            {% set has_expense = false %}
-            {% set card_names = [] %}
-            {% set expense_names = [] %}
-            
-            {# Check cards due on this day #}
-            {% for card in cards %}
-                {% if card.due_day == day %}
-                    {% set has_card = true %}
-                    {% set card_names = card_names + [card.name] %}
-                {% endif %}
-            {% endfor %}
-            
-            {# Check planned expenses due on this day #}
-            {% for exp in planned_expenses %}
-                {% if exp.due_day == day %}
-                    {% set has_expense = true %}
-                    {% set expense_names = expense_names + [exp.name ~ ' (' ~ exp.icon ~ ')'] %}
-                {% endif %}
-            {% endfor %}
-            
-            {% if has_card or has_expense %}
-            <div class="calendar-day has-items {% if day == today_day %}today{% endif %}">
-                <div class="day-number">{{ day }}</div>
-                <div class="day-items">
-                    {% if has_card %}
-                    {% for card in cards %}
-                        {% if card.due_day == day %}
-                        <div class="day-item card-item" title="Credit Card: {{ card.name }}">
-                            💳 {{ card.name }}
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-                    {% endif %}
-                    {% if has_expense %}
-                    {% for exp in planned_expenses %}
-                        {% if exp.due_day == day %}
-                        <div class="day-item expense-item" title="Planned Expense: {{ exp.name }}">
-                            {{ exp.icon }} {{ exp.name }}
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-                    {% endif %}
-                </div>
-            </div>
-            {% else %}
             <div class="calendar-day {% if day == today_day %}today{% endif %}">
                 <div class="day-number">{{ day }}</div>
-            </div>
-            {% endif %}
-        {% endfor %}
-    </div>
+                <div class="day-items">
+                {% for card in cards %}
+                    {% if card.due_day == day %}
+                    <div class="day-item card-item" title="Credit Card: {{ card.name }}">
+                        💳
+                    </div>
+                    {% endif %}
+                {% endfor %}
+                {% for exp in planned_expenses %}
+                    {% if exp.due_day == day %}
+                    <div class="day-item expense-item" title="Planned Expense: {{ exp.name }}">
     <div style="margin-top: 15px; display: flex; gap: 20px; font-size: 13px;">
         <span><span style="display: inline-block; width: 12px; height: 12px; background: #e3f2fd; border: 2px solid #1976d2; border-radius: 3px; margin-right: 5px;"></span>Credit Card</span>
         <span><span style="display: inline-block; width: 12px; height: 12px; background: #f3e5f5; border: 2px solid #7b1fa2; border-radius: 3px; margin-right: 5px;"></span>Planned Expense</span>

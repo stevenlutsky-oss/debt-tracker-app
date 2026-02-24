@@ -108,9 +108,9 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <h2>📅 Payment Calendar</h2>
         <div style="display: flex; align-items: center; gap: 10px;">
-            <button onclick="loadCalendar({{ prev_month }}, {{ prev_year }})" style="background: none; border: none; font-size: 20px; cursor: pointer;">◀</button>
+            <button id="prevMonthBtn" onclick="loadCalendar({{ prev_month }}, {{ prev_year }})" style="background: none; border: none; font-size: 20px; cursor: pointer;">◀</button>
             <span id="calendarMonthName" style="font-weight: bold; font-size: 16px;">{{ month_name }}</span>
-            <button onclick="loadCalendar({{ next_month }}, {{ next_year }})" style="background: none; border: none; font-size: 20px; cursor: pointer;">▶</button>
+            <button id="nextMonthBtn" onclick="loadCalendar({{ next_month }}, {{ next_year }})" style="background: none; border: none; font-size: 20px; cursor: pointer;">▶</button>
         </div>
     </div>
     <div class="calendar-weekdays">
@@ -413,11 +413,32 @@ function updatePaymentType(cardId, paymentType) {
 }
 
 function loadCalendar(month, year) {
+    // Show loading state
+    var prevBtn = document.getElementById('prevMonthBtn');
+    var nextBtn = document.getElementById('nextMonthBtn');
+    var monthName = document.getElementById('calendarMonthName');
+    
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    prevBtn.style.opacity = '0.5';
+    nextBtn.style.opacity = '0.5';
+    monthName.innerText = 'Loading...';
+    
     fetch('/api/calendar/' + month + '/' + year)
         .then(response => response.json())
         .then(data => {
             // Update month name
             document.getElementById('calendarMonthName').innerText = data.month_name;
+            
+            // Update button handlers for next navigation
+            prevBtn.setAttribute('onclick', 'loadCalendar(' + data.prev_month + ', ' + data.prev_year + ')');
+            nextBtn.setAttribute('onclick', 'loadCalendar(' + data.next_month + ', ' + data.next_year + ')');
+            
+            // Re-enable buttons
+            prevBtn.disabled = false;
+            nextBtn.disabled = false;
+            prevBtn.style.opacity = '1';
+            nextBtn.style.opacity = '1';
             
             // Store data for card modal calculations
             window.calendarData = data;

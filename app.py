@@ -649,6 +649,14 @@ def migrate_db():
     except:
         cursor.execute("ALTER TABLE cards ADD COLUMN payment_type TEXT DEFAULT 'minimum'")
     
+    # Add payday_type to paydays table if it doesn't exist
+    try:
+        cursor.execute('SELECT payday_type FROM paydays LIMIT 1')
+    except:
+        cursor.execute("ALTER TABLE paydays ADD COLUMN payday_type TEXT DEFAULT 'day_of_month'")
+        cursor.execute('ALTER TABLE paydays ADD COLUMN weekday INTEGER DEFAULT 5')
+        cursor.execute('ALTER TABLE paydays ADD COLUMN week_number INTEGER')
+    
     # Create paydays table if it doesn't exist
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS paydays (

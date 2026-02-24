@@ -613,7 +613,7 @@ else:
 
 @app.route('/')
 @login_required
-def index():
+def index(month=None, year=None):
     # Auto-sync from Google Sheets on page load
     try:
         sync_from_sheets()
@@ -633,6 +633,31 @@ def index():
     total_credit_limit = 0
     alerts = []
     today = datetime.now()
+    
+    # Handle month navigation
+    if month is None:
+        month = today.month
+    if year is None:
+        year = today.year
+    
+    # Get days in the selected month
+    if month == 12:
+        next_month = datetime(year + 1, 1, 1)
+    else:
+        next_month = datetime(year, month + 1, 1)
+    days_in_month = (next_month - datetime(year, month, 1)).days
+    
+    # Calculate previous/next month
+    if month == 1:
+        prev_month, prev_year = 12, year - 1
+    else:
+        prev_month, prev_year = month - 1, year
+    if month == 12:
+        next_month_calc, next_year = 1, year + 1
+    else:
+        next_month_calc, next_year = month + 1, year
+    
+    month_name = datetime(year, month, 1).strftime('%B %Y')
     
     cards_with_interest = []
     for card in cards:
@@ -724,8 +749,9 @@ def index():
     cursor.execute('SELECT * FROM planned_expenses WHERE is_active = 1 ORDER BY due_day ASC')
     planned_expenses = cursor.fetchall()
     
-    # Get today's day of month for calendar highlighting
-    today_day = today.day
+    # Get today's day of month for calendar highlighting (only highlight today if viewing current month)
+    is_current_month = (month == today.month and year == today.year)
+    today_day = today.day if is_current_month else None
     
     conn.close()
     
@@ -733,7 +759,18 @@ def index():
                            total_interest=total_interest, recent_payments=recent_payments,
                            alerts=alerts, plaid_available=PLAID_AVAILABLE, bank_accounts=bank_accounts,
                            total_credit_limit=total_credit_limit, total_available_credit=total_available_credit,
-                           percent_paid=percent_paid, planned_expenses=planned_expenses, today_day=today_day)
+                           percent_paid=percent_paid, planned_expenses=planned_expenses, today_day=today_day,
+                           current_month=month, current_year=year, days_in_month=days_in_month,
+                           prev_month=prev_month, prev_year=prev_year, 
+                           next_month=next_month_calc, next_year=next_year,
+                           month_name=month_name)
+
+@app.route('/calendar')
+@app.route('/calendar/<int:month>/<int:year>')
+@login_required
+def calendar(month=None, year=None):
+    """Calendar view with month navigation"""
+    return index(month=month, year=year)
 
 @app.route('/card/add', methods=['GET', 'POST'])
 @login_required

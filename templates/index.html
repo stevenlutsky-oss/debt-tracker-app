@@ -105,24 +105,30 @@
 
 {% if planned_expenses or cards %}
 <div class="card">
-    <h2>📅 Payment Calendar</h2>
-    <p style="color: #7f8c8d; margin-bottom: 15px;">Due dates for this month</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2>📅 Payment Calendar</h2>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <a href="/calendar/{{ prev_month }}/{{ prev_year }}" style="text-decoration: none; font-size: 20px;">◀</a>
+            <span style="font-weight: bold; font-size: 16px;">{{ month_name }}</span>
+            <a href="/calendar/{{ next_month }}/{{ next_year }}" style="text-decoration: none; font-size: 20px;">▶</a>
+        </div>
+    </div>
     <div class="calendar-grid">
-        {% for day in range(1, 32) %}
-            <div class="calendar-day {% if day == today_day %}today{% endif %}">
+        {% for day in range(1, days_in_month + 1) %}
+            <div class="calendar-day {% if today_day and day == today_day %}today{% endif %}">
                 <div class="day-number">{{ day }}</div>
                 <div class="day-items">
                 {% for card in cards %}
                     {% if card.due_day == day %}
-                    <div class="day-item card-item" title="Credit Card: {{ card.name }}">
-                        💳
+                    <div class="day-item card-item" onclick="showCardDetail({{ card.id }})" style="cursor: pointer;" title="Credit Card: {{ card.name }} - Click for details">
+                        💳 {{ card.name }}
                     </div>
                     {% endif %}
                 {% endfor %}
                 {% for exp in planned_expenses %}
                     {% if exp.due_day == day %}
-                    <div class="day-item expense-item" title="Planned Expense: {{ exp.name }}">
-                        {{ exp.icon }}
+                    <div class="day-item expense-item" onclick="showExpenseDetail({{ exp.id }})" style="cursor: pointer;" title="Planned Expense: {{ exp.name }} - Click for details">
+                        {{ exp.icon }} {{ exp.name }}
                     </div>
                     {% endif %}
                 {% endfor %}
@@ -131,9 +137,11 @@
         {% endfor %}
     </div>
     <div style="margin-top: 15px; display: flex; gap: 20px; font-size: 13px;">
-        <span><span style="display: inline-block; width: 12px; height: 12px; background: #e3f2fd; border: 2px solid #1976d2; border-radius: 3px; margin-right: 5px;"></span>Credit Card</span>
-        <span><span style="display: inline-block; width: 12px; height: 12px; background: #f3e5f5; border: 2px solid #7b1fa2; border-radius: 3px; margin-right: 5px;"></span>Planned Expense</span>
+        <span><span style="display: inline-block; width: 12px; height: 12px; background: #e3f2fd; border: 2px solid #1976d2; border-radius: 3px; margin-right: 5px;"></span>Credit Card (click for details)</span>
+        <span><span style="display: inline-block; width: 12px; height: 12px; background: #f3e5f5; border: 2px solid #7b1fa2; border-radius: 3px; margin-right: 5px;"></span>Planned Expense (click for details)</span>
+        {% if today_day %}
         <span><span style="display: inline-block; width: 12px; height: 12px; background: #fff3e0; border: 2px solid #f57c00; border-radius: 3px; margin-right: 5px;"></span>Today</span>
+        {% endif %}
     </div>
 </div>
 {% endif %}
@@ -191,6 +199,17 @@
     </div>
 </div>
 
+<!-- Expense Detail Modal -->
+<div id="expenseModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;" onclick="closeExpenseModal(event)">
+    <div style="background: white; margin: 20px auto; max-width: 500px; border-radius: 12px; padding: 25px; position: relative;" onclick="event.stopPropagation()">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 id="expenseModalTitle" style="margin: 0;">Expense Details</h2>
+            <button onclick="closeExpenseModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        <div id="expenseModalContent"></div>
+    </div>
+</div>
+
 <!-- Hamburger Menu -->
 <div id="cardMenu" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;" onclick="closeMenu()">
     <div style="background: white; position: absolute; bottom: 0; left: 0; right: 0; border-radius: 12px 12px 0 0; padding: 20px;" onclick="event.stopPropagation()">
@@ -213,6 +232,17 @@ cardsData[{{ card.id }}] = {
     minimum_payment: {{ card.minimum_payment }},
     due_day: {{ card.due_day }},
     monthly_interest: {{ card.monthly_interest }}
+};
+{% endfor %}
+
+var expensesData = {};
+{% for exp in planned_expenses %}
+expensesData[{{ exp.id }}] = {
+    name: "{{ exp.name }}",
+    amount: {{ exp.amount }},
+    due_day: {{ exp.due_day }},
+    icon: "{{ exp.icon }}",
+    category: "{{ exp.category or '' }}"
 };
 {% endfor %}
 
@@ -275,6 +305,43 @@ function closeMenu() {
 function closeModal(event) {
     if (event) event.stopPropagation();
     document.getElementById('cardModal').style.display = 'none';
+}
+
+function showExpenseDetail(id) {
+    var exp = expensesData[id];
+    if (!exp) return;
+    
+    var ordinals = ['', 'st', 'nd', 'rd'];
+    var suffix = (exp.due_day >= 11 && exp.due_day <= 13) ? 'th' : ordinals[exp.due_day % 10] || 'th';
+    
+    var html = '<div style="text-align: center; margin-bottom: 20px;">' +
+        '<div style="font-size: 48px; margin-bottom: 10px;">' + exp.icon + '</div>' +
+        '<div style="font-size: 36px; font-weight: bold; color: #2c3e50;">' + exp.amount.toLocaleString("en-US", {style: "currency", currency: "USD"}) + '</div>' +
+        '<div style="color: #7f8c8d;">per month</div></div>' +
+        
+        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">' +
+        '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">' +
+        '<div style="text-align: center;">' +
+        '<div style="font-size: 18px; font-weight: bold;">' + exp.due_day + suffix + '</div>' +
+        '<div style="font-size: 12px; color: #7f8c8d;">Due Day</div></div>' +
+        '<div style="text-align: center;">' +
+        '<div style="font-size: 18px; font-weight: bold;">' + (exp.category || 'Uncategorized') + '</div>' +
+        '<div style="font-size: 12px; color: #7f8c8d;">Category</div></div>' +
+        '</div></div>' +
+        
+        '<div style="display: flex; gap: 10px;">' +
+        '<a href="/expenses/' + id + '/edit" class="btn" style="flex: 1; background: #3498db; color: white; padding: 12px; text-align: center; border-radius: 8px; text-decoration: none;">✏️ Edit</a>' +
+        '<a href="/expenses/' + id + '/delete" class="btn" style="flex: 1; background: #e74c3c; color: white; padding: 12px; text-align: center; border-radius: 8px; text-decoration: none;" onclick="return confirm(\'Delete this expense?\')">🗑️ Delete</a>' +
+        '</div>';
+    
+    document.getElementById('expenseModalTitle').innerText = exp.icon + ' ' + exp.name;
+    document.getElementById('expenseModalContent').innerHTML = html;
+    document.getElementById('expenseModal').style.display = 'block';
+}
+
+function closeExpenseModal(event) {
+    if (event) event.stopPropagation();
+    document.getElementById('expenseModal').style.display = 'none';
 }
 </script>
 

@@ -837,6 +837,15 @@ def index(month=None, year=None):
     cursor.execute('SELECT * FROM planned_expenses WHERE is_active = 1 ORDER BY due_day ASC')
     planned_expenses = cursor.fetchall()
     
+    # Get paydays for calendar and calculate actual days
+    cursor.execute('SELECT * FROM paydays WHERE is_active = 1 ORDER BY day ASC')
+    paydays = cursor.fetchall()
+    paydays_with_days = []
+    for p in paydays:
+        p_dict = dict(p)
+        p_dict['actual_day'] = get_payday_day(p, month, year)
+        paydays_with_days.append(p_dict)
+    
     # Get today's day of month for calendar highlighting (only highlight today if viewing current month)
     is_current_month = (month == today.month and year == today.year)
     today_day = today.day if is_current_month else None

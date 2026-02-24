@@ -927,6 +927,11 @@ def api_calendar(month=None, year=None):
     bank_accounts = read_bank_accounts()
     current_bank_balance = sum(a['balance'] for a in bank_accounts) if bank_accounts else 0
     
+    # Convert cards, paydays, expenses to dicts for easier access
+    cards_dict = [dict(c) for c in cards]
+    paydays_dict = [dict(p) for p in paydays]
+    expenses_dict = [dict(e) for e in expenses]
+    
     # Calculate expected balance for each day
     expected_balance_by_day = {}
     running_balance = current_bank_balance
@@ -945,13 +950,13 @@ def api_calendar(month=None, year=None):
             continue
             
         # Add any paydays on or before this day
-        for payday in paydays:
+        for payday in paydays_dict:
             payday_day = get_payday_day(payday, month, year)
             if payday_day == day:
                 running_balance += payday['amount']
         
         # Subtract card payments due on this day
-        for card in cards:
+        for card in cards_dict:
             if card['due_day'] == day:
                 payment_type = card.get('payment_type', 'minimum')
                 next_payment = card.get('next_payment', 0)
@@ -961,7 +966,7 @@ def api_calendar(month=None, year=None):
                     running_balance -= card['minimum_payment']
         
         # Subtract planned expenses due on this day
-        for exp in expenses:
+        for exp in expenses_dict:
             if exp['due_day'] == day:
                 running_balance -= exp['amount']
     
@@ -978,9 +983,9 @@ def api_calendar(month=None, year=None):
         'today_day': today_day,
         'current_bank_balance': current_bank_balance,
         'expected_balance_by_day': expected_balance_by_day,
-        'cards': [{'id': c['id'], 'name': c['name'], 'due_day': c['due_day']} for c in cards],
-        'expenses': [{'id': e['id'], 'name': e['name'], 'amount': e['amount'], 'due_day': e['due_day'], 'icon': e['icon']} for e in expenses],
-        'paydays': [{'id': p['id'], 'day': get_payday_day(dict(p), month, year), 'amount': p['amount'], 'name': p['name'], 'payday_type': p.get('payday_type', 'day_of_month')} for p in paydays]
+        'cards': [{'id': c['id'], 'name': c['name'], 'due_day': c['due_day']} for c in cards_dict],
+        'expenses': [{'id': e['id'], 'name': e['name'], 'amount': e['amount'], 'due_day': e['due_day'], 'icon': e['icon']} for e in expenses_dict],
+        'paydays': [{'id': p['id'], 'day': get_payday_day(p, month, year), 'amount': p['amount'], 'name': p['name'], 'payday_type': p.get('payday_type', 'day_of_month')} for p in paydays_dict]
     })
 
 @app.route('/calendar')

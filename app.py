@@ -843,6 +843,9 @@ def api_calendar(month=None, year=None):
     
     month_name = datetime(year, month, 1).strftime('%B %Y')
     
+    # Get the day of week the month starts on (0=Sunday, 1=Monday, etc.)
+    first_day_of_week = datetime(year, month, 1).weekday()
+    
     # Get cards, expenses, paydays, and bank accounts
     conn = get_db()
     cursor = conn.cursor()
@@ -900,6 +903,7 @@ def api_calendar(month=None, year=None):
         'year': year,
         'month_name': month_name,
         'days_in_month': days_in_month,
+        'first_day_of_week': first_day_of_week,
         'prev_month': prev_month,
         'prev_year': prev_year,
         'next_month': next_month_calc,

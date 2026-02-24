@@ -414,6 +414,13 @@ function loadCalendar(month, year) {
             var grid = document.getElementById('calendarGrid');
             grid.innerHTML = '';
             
+            // Add empty cells for days before the first of the month
+            for (var i = 0; i < data.first_day_of_week; i++) {
+                var emptyCell = document.createElement('div');
+                emptyCell.className = 'calendar-day empty-day';
+                grid.appendChild(emptyCell);
+            }
+            
             for (var day = 1; day <= data.days_in_month; day++) {
                 var dayDiv = document.createElement('div');
                 dayDiv.className = 'calendar-day';
@@ -574,6 +581,11 @@ function loadCalendar(month, year) {
     .payday-item {
         background: #e8f5e9;
         border-left: 3px solid #27ae60;
+    }
+    
+    .empty-day {
+        background: transparent;
+        border: none;
     }
     
     @media (max-width: 768px) {

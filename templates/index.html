@@ -113,6 +113,9 @@
             <button onclick="loadCalendar({{ next_month }}, {{ next_year }})" style="background: none; border: none; font-size: 20px; cursor: pointer;">▶</button>
         </div>
     </div>
+    <div class="calendar-weekdays">
+        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
     <div id="calendarGrid" class="calendar-grid" data-month="{{ current_month }}" data-year="{{ current_year }}">
         {% for day in range(1, days_in_month + 1) %}
             <div class="calendar-day {% if today_day and day == today_day %}today{% endif %}">
@@ -263,7 +266,16 @@ function showCardDetail(id) {
     var usedPercent = card.credit_limit > 0 ? (card.balance / card.credit_limit * 100).toFixed(1) : 0;
     
     var paymentAmount = card.payment_type === 'next_payment' ? card.next_payment : card.minimum_payment;
-    var balanceAfterPayment = totalBankBalance - paymentAmount;
+    
+    // Get expected balance after this card's payment
+    var expectedBalance = totalBankBalance;
+    if (window.calendarData && window.calendarData.expected_balance_by_day) {
+        // Get the expected balance for the day after this card is due
+        var dueDay = card.due_day;
+        expectedBalance = window.calendarData.expected_balance_by_day[dueDay] || totalBankBalance;
+    }
+    
+    var balanceAfterPayment = expectedBalance - paymentAmount;
     var balanceAfterClass = balanceAfterPayment >= 3000 ? '#27ae60' : '#e74c3c';
     
     var html = '<div style="text-align: center; margin-bottom: 20px;">' +
@@ -395,6 +407,9 @@ function loadCalendar(month, year) {
             // Update month name
             document.getElementById('calendarMonthName').innerText = data.month_name;
             
+            // Store data for card modal calculations
+            window.calendarData = data;
+            
             // Rebuild calendar grid
             var grid = document.getElementById('calendarGrid');
             grid.innerHTML = '';
@@ -413,6 +428,19 @@ function loadCalendar(month, year) {
                 
                 var itemsDiv = document.createElement('div');
                 itemsDiv.className = 'day-items';
+                
+                // Check paydays
+                data.paydays.forEach(function(payday) {
+                    if (payday.day === day) {
+                        var item = document.createElement('div');
+                        item.className = 'day-item payday-item';
+                        item.style.background = '#e8f5e9';
+                        item.style.borderLeft = '3px solid #27ae60';
+                        item.title = 'Payday: ' + payday.name + ' - ' + payday.amount.toLocaleString("en-US", {style: "currency", currency: "USD"});
+                        item.innerHTML = '💰 ' + payday.amount.toLocaleString("en-US", {style: "currency", currency: "USD"});
+                        itemsDiv.appendChild(item);
+                    }
+                });
                 
                 // Check cards
                 data.cards.forEach(function(card) {
@@ -473,6 +501,17 @@ function loadCalendar(month, year) {
 {% endif %}
 
 <style>
+    .calendar-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+        margin-bottom: 8px;
+        text-align: center;
+        font-weight: bold;
+        font-size: 12px;
+        color: #7f8c8d;
+    }
+    
     .calendar-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
@@ -530,6 +569,11 @@ function loadCalendar(month, year) {
     .expense-item {
         background: #f3e5f5;
         border-left: 3px solid #7b1fa2;
+    }
+    
+    .payday-item {
+        background: #e8f5e9;
+        border-left: 3px solid #27ae60;
     }
     
     @media (max-width: 768px) {

@@ -611,6 +611,18 @@ def migrate_db():
     except:
         cursor.execute("ALTER TABLE cards ADD COLUMN payment_type TEXT DEFAULT 'minimum'")
     
+    # Create paydays table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS paydays (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            day INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            name TEXT DEFAULT 'Payday',
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     # Create planned_expenses table if it doesn't exist
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS planned_expenses (
@@ -831,17 +843,57 @@ def api_calendar(month=None, year=None):
     
     month_name = datetime(year, month, 1).strftime('%B %Y')
     
-    # Get cards and expenses
+    # Get cards, expenses, paydays, and bank accounts
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM cards ORDER BY due_day ASC')
     cards = cursor.fetchall()
     cursor.execute('SELECT * FROM planned_expenses WHERE is_active = 1 ORDER BY due_day ASC')
     expenses = cursor.fetchall()
+    cursor.execute('SELECT * FROM paydays WHERE is_active = 1 ORDER BY day ASC')
+    paydays = cursor.fetchall()
     conn.close()
     
+    # Get bank accounts for balance
+    bank_accounts = read_bank_accounts()
+    current_bank_balance = sum(a['balance'] for a in bank_accounts) if bank_accounts else 0
+    
+    # Calculate expected balance for each day
+    expected_balance_by_day = {}
+    running_balance = current_bank_balance
+    
+    # If viewing current month, start from today. Otherwise, calculate from start of month
     is_current_month = (month == today.month and year == today.year)
     today_day = today.day if is_current_month else None
+    
+    # Start day for calculation
+    start_day = today_day if is_current_month else 1
+    
+    for day in range(1, days_in_month + 1):
+        expected_balance_by_day[day] = running_balance
+        
+        if is_current_month and day < today_day:
+            continue
+            
+        # Add any paydays on or before this day
+        for payday in paydays:
+            if payday['day'] == day:
+                running_balance += payday['amount']
+        
+        # Subtract card payments due on this day
+        for card in cards:
+            if card['due_day'] == day:
+                payment_type = card.get('payment_type', 'minimum')
+                next_payment = card.get('next_payment', 0)
+                if payment_type == 'next_payment' and next_payment and next_payment > 0:
+                    running_balance -= next_payment
+                else:
+                    running_balance -= card['minimum_payment']
+        
+        # Subtract planned expenses due on this day
+        for exp in expenses:
+            if exp['due_day'] == day:
+                running_balance -= exp['amount']
     
     return jsonify({
         'month': month,
@@ -853,8 +905,11 @@ def api_calendar(month=None, year=None):
         'next_month': next_month_calc,
         'next_year': next_year,
         'today_day': today_day,
+        'current_bank_balance': current_bank_balance,
+        'expected_balance_by_day': expected_balance_by_day,
         'cards': [{'id': c['id'], 'name': c['name'], 'due_day': c['due_day']} for c in cards],
-        'expenses': [{'id': e['id'], 'name': e['name'], 'amount': e['amount'], 'due_day': e['due_day'], 'icon': e['icon']} for e in expenses]
+        'expenses': [{'id': e['id'], 'name': e['name'], 'amount': e['amount'], 'due_day': e['due_day'], 'icon': e['icon']} for e in expenses],
+        'paydays': [{'id': p['id'], 'day': p['day'], 'amount': p['amount'], 'name': p['name']} for p in paydays]
     })
 
 @app.route('/calendar')
@@ -1142,6 +1197,83 @@ def delete_expense(expense_id):
     
     flash('Expense deleted successfully!', 'success')
     return redirect(url_for('expenses'))
+
+# ============= PAYDAYS ROUTES =============
+
+@app.route('/paydays')
+@login_required
+def paydays():
+    """Show all paydays"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM paydays WHERE is_active = 1 ORDER BY day ASC')
+    payday_list = cursor.fetchall()
+    conn.close()
+    return render_template('paydays.html', paydays=payday_list)
+
+@app.route('/paydays/add', methods=['GET', 'POST'])
+@login_required
+def add_payday():
+    """Add a new payday"""
+    if request.method == 'POST':
+        day = int(request.form['day'])
+        amount = float(request.form['amount'])
+        name = request.form.get('name', 'Payday')
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO paydays (day, amount, name)
+            VALUES (?, ?, ?)
+        ''', (day, amount, name))
+        conn.commit()
+        conn.close()
+        
+        flash(f'Payday added!', 'success')
+        return redirect(url_for('paydays'))
+    
+    return render_template('payday_form.html', payday=None, title='Add Payday')
+
+@app.route('/paydays/<int:payday_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_payday(payday_id):
+    """Edit an existing payday"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    if request.method == 'POST':
+        day = int(request.form['day'])
+        amount = float(request.form['amount'])
+        name = request.form.get('name', 'Payday')
+        
+        cursor.execute('''
+            UPDATE paydays SET day = ?, amount = ?, name = ?
+            WHERE id = ?
+        ''', (day, amount, name, payday_id))
+        conn.commit()
+        conn.close()
+        
+        flash(f'Payday updated!', 'success')
+        return redirect(url_for('paydays'))
+    
+    cursor.execute('SELECT * FROM paydays WHERE id = ?', (payday_id,))
+    payday = cursor.fetchone()
+    conn.close()
+    
+    return render_template('payday_form.html', payday=payday, title='Edit Payday')
+
+@app.route('/paydays/<int:payday_id>/delete')
+@login_required
+def delete_payday(payday_id):
+    """Delete a payday"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE paydays SET is_active = 0 WHERE id = ?', (payday_id,))
+    conn.commit()
+    conn.close()
+    
+    flash('Payday deleted!', 'success')
+    return redirect(url_for('paydays'))
 
 # ============= PLAID LINK ROUTES =============
 

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Paydays - Debt Tracker{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <h2>💰 Paydays</h2>
+        <a href="/paydays/add" class="btn" style="background: #27ae60; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold;">+ Add Payday</a>
+    </div>
+</div>
+
+{% if paydays %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Paydays This Month</h3>
+        <div class="value">{{ paydays|length }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Total Income</h3>
+        <div class="value" style="color: #27ae60;">${{ paydays|sum(attribute='amount')|currency }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Your Paydays</h3>
+    <div class="expense-grid">
+        {% for payday in paydays %}
+        <div class="expense-card" style="background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);">
+            <div class="expense-header">
+                <span class="expense-icon">💰</span>
+                <div class="expense-actions">
+                    <a href="/paydays/{{ payday.id }}/edit" class="icon-btn" title="Edit">✏️</a>
+                    <a href="/paydays/{{ payday.id }}/delete" class="icon-btn" title="Delete" onclick="return confirm('Delete this payday?')">🗑️</a>
+                </div>
+            </div>
+            <div class="expense-name">{{ payday.name }}</div>
+            <div class="expense-amount">{{ payday.amount|currency }}</div>
+            <div class="expense-due">Day: {{ payday.day }}{{ payday.day|ordinal }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% else %}
+<div class="card" style="text-align: center; padding: 40px;">
+    <p style="color: #7f8c8d; font-size: 18px;">No paydays added yet.</p>
+    <p style="color: #95a5a6;">Add your paydays to track expected bank balance.</p>
+    <a href="/paydays/add" class="btn" style="background: #27ae60; color: white; padding: 12px 24px; border-radius: 5px; text-decoration: none; display: inline-block; margin-top: 15px; font-weight: bold;">+ Add Your First Payday</a>
+</div>
+{% endif %}
+
+<style>
+    .expense-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .expense-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 20px;
+        color: white;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .expense-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    
+    .expense-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .expense-icon {
+        font-size: 32px;
+    }
+    
+    .expense-actions {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .icon-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        border-radius: 5px;
+        padding: 5px 8px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+    }
+    
+    .expense-name {
+        font-size: 18px;
+        font-weight: bold;
+        margin-top: 10px;
+    }
+    
+    .expense-amount {
+        font-size: 28px;
+        font-weight: bold;
+        margin: 5px 0;
+    }
+    
+    .expense-due {
+        font-size: 14px;
+        opacity: 0.9;
+    }
+</style>
+
+{% endblock %}

@@ -37,7 +37,17 @@
             </div>
             <div class="expense-name">{{ payday.name }}</div>
             <div class="expense-amount">{{ payday.amount|currency }}</div>
-            <div class="expense-due">Day: {{ payday.day }}{{ payday.day|ordinal }}</div>
+            <div class="expense-due">
+                {% if payday.payday_type == 'day_of_month' %}
+                    Day: {{ payday.day }}{{ payday.day|ordinal }}
+                {% elif payday.payday_type == 'second_friday' %}
+                    2nd Friday of month
+                {% elif payday.payday_type == 'last_friday' %}
+                    Last Friday of month
+                {% else %}
+                    Day: {{ payday.day }}
+                {% endif %}
+            </div>
         </div>
         {% endfor %}
     </div>

@@ -16,8 +16,18 @@
         </div>
         
         <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Schedule Type</label>
+            <select name="payday_type" id="paydayType" onchange="togglePaydayFields()" 
+                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px;">
+                <option value="day_of_month" {% if payday and payday.payday_type == 'day_of_month' %}selected{% endif %}>Fixed Day of Month</option>
+                <option value="second_friday" {% if payday and payday.payday_type == 'second_friday' %}selected{% endif %}>2nd Friday of Month</option>
+                <option value="last_friday" {% if payday and payday.payday_type == 'last_friday' %}selected{% endif %}>Last Friday of Month</option>
+            </select>
+        </div>
+        
+        <div id="dayOfMonthField" style="margin-bottom: 20px; {% if payday and payday.payday_type != 'day_of_month' %}display: none;{% endif %}">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">Day of Month (1-31)</label>
-            <input type="number" name="day" value="{{ payday.day if payday else '1' }}" required min="1" max="31"
+            <input type="number" name="day" value="{{ payday.day if payday else '1' }}" min="1" max="31"
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px;">
         </div>
         
@@ -36,5 +46,21 @@
         </div>
     </form>
 </div>
+
+<script>
+function togglePaydayFields() {
+    var type = document.getElementById('paydayType').value;
+    var dayField = document.getElementById('dayOfMonthField');
+    var dayInput = dayField.querySelector('input');
+    
+    if (type === 'day_of_month') {
+        dayField.style.display = 'block';
+        dayInput.required = true;
+    } else {
+        dayField.style.display = 'none';
+        dayInput.required = false;
+    }
+}
+</script>
 
 {% endblock %}

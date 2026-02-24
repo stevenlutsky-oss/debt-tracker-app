@@ -29,6 +29,44 @@ app.secret_key = os.environ.get('SECRET_KEY', 'debt-tracker-secret-key')
 ADMIN_USER = os.environ.get('ADMIN_USER', 'stevenlutsky@gmail.com')
 ADMIN_PASS = os.environ.get('ADMIN_PASS', '!8Rooper1617')
 
+def get_payday_day(payday, month, year):
+    """Calculate actual day number for a payday based on its type"""
+    payday_type = payday.get('payday_type', 'day_of_month')
+    
+    if payday_type == 'day_of_month':
+        return payday['day']
+    elif payday_type == 'second_friday':
+        # Find 2nd Friday of the month
+        return get_nth_weekday_of_month(year, month, 4, 2)  # 4 = Friday
+    elif payday_type == 'last_friday':
+        # Find last Friday of the month
+        return get_last_weekday_of_month(year, month, 4)  # 4 = Friday
+    
+    return payday['day']
+
+def get_nth_weekday_of_month(year, month, weekday, n):
+    """Get the nth weekday of a month (weekday: 0=Mon, 4=Fri)"""
+    from datetime import date
+    # First day of month
+    first_day = date(year, month, 1)
+    # Find first occurrence of the weekday
+    days_until = (weekday - first_day.weekday()) % 7
+    first_weekday = first_day + timedelta(days=days_until)
+    # Get nth occurrence
+    return first_weekday.day + (n - 1) * 7
+
+def get_last_weekday_of_month(year, month, weekday):
+    """Get the last weekday of a month (weekday: 0=Mon, 4=Fri)"""
+    from datetime import date
+    # Last day of month
+    if month == 12:
+        last_day = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        last_day = date(year, month + 1, 1) - timedelta(days=1)
+    # Find last occurrence of the weekday
+    days_back = (last_day.weekday() - weekday) % 7
+    return last_day.day - days_back
+
 def login_required(f):
     """Decorator to require login"""
     from functools import wraps
@@ -884,7 +922,8 @@ def api_calendar(month=None, year=None):
             
         # Add any paydays on or before this day
         for payday in paydays:
-            if payday['day'] == day:
+            payday_day = get_payday_day(payday, month, year)
+            if payday_day == day:
                 running_balance += payday['amount']
         
         # Subtract card payments due on this day
@@ -917,7 +956,7 @@ def api_calendar(month=None, year=None):
         'expected_balance_by_day': expected_balance_by_day,
         'cards': [{'id': c['id'], 'name': c['name'], 'due_day': c['due_day']} for c in cards],
         'expenses': [{'id': e['id'], 'name': e['name'], 'amount': e['amount'], 'due_day': e['due_day'], 'icon': e['icon']} for e in expenses],
-        'paydays': [{'id': p['id'], 'day': p['day'], 'amount': p['amount'], 'name': p['name']} for p in paydays]
+        'paydays': [{'id': p['id'], 'day': get_payday_day(p, month, year), 'amount': p['amount'], 'name': p['name'], 'payday_type': p.get('payday_type', 'day_of_month')} for p in paydays]
     })
 
 @app.route('/calendar')
@@ -1224,16 +1263,17 @@ def paydays():
 def add_payday():
     """Add a new payday"""
     if request.method == 'POST':
-        day = int(request.form['day'])
+        day = int(request.form.get('day', 1))
         amount = float(request.form['amount'])
         name = request.form.get('name', 'Payday')
+        payday_type = request.form.get('payday_type', 'day_of_month')
         
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO paydays (day, amount, name)
-            VALUES (?, ?, ?)
-        ''', (day, amount, name))
+            INSERT INTO paydays (day, amount, name, payday_type)
+            VALUES (?, ?, ?, ?)
+        ''', (day, amount, name, payday_type))
         conn.commit()
         conn.close()
         
@@ -1250,14 +1290,15 @@ def edit_payday(payday_id):
     cursor = conn.cursor()
     
     if request.method == 'POST':
-        day = int(request.form['day'])
+        day = int(request.form.get('day', 1))
         amount = float(request.form['amount'])
         name = request.form.get('name', 'Payday')
+        payday_type = request.form.get('payday_type', 'day_of_month')
         
         cursor.execute('''
-            UPDATE paydays SET day = ?, amount = ?, name = ?
+            UPDATE paydays SET day = ?, amount = ?, name = ?, payday_type = ?
             WHERE id = ?
-        ''', (day, amount, name, payday_id))
+        ''', (day, amount, name, payday_type, payday_id))
         conn.commit()
         conn.close()
         

@@ -37,7 +37,7 @@
             </div>
             <div class="expense-name">{{ expense.name }}</div>
             <div class="expense-amount">{{ expense.amount|currency }}</div>
-            <div class="expense-due">Due: {{ expense.due_day }}{{ expense.due_day|ordinal }}</div>
+            <div class="expense-due">Due: {{ expense.due_day|int }}{{ expense.due_day|int|ordinal }}</div>
             {% if expense.category %}
             <div class="expense-category">{{ expense.category }}</div>
             {% endif %}

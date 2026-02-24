@@ -722,11 +722,20 @@ def index():
         paid = total_credit_limit - total_debt
         percent_paid = (paid / total_credit_limit) * 100
     
+    # Get planned expenses for calendar
+    cursor.execute('SELECT * FROM planned_expenses WHERE is_active = 1 ORDER BY due_day ASC')
+    planned_expenses = cursor.fetchall()
+    
+    # Get today's day of month for calendar highlighting
+    today_day = today.day
+    
+    conn.close()
+    
     return render_template('index.html', cards=cards_with_interest, total_debt=total_debt, 
                            total_interest=total_interest, recent_payments=recent_payments,
                            alerts=alerts, plaid_available=PLAID_AVAILABLE, bank_accounts=bank_accounts,
                            total_credit_limit=total_credit_limit, total_available_credit=total_available_credit,
-                           percent_paid=percent_paid)
+                           percent_paid=percent_paid, planned_expenses=planned_expenses, today_day=today_day)
 
 @app.route('/card/add', methods=['GET', 'POST'])
 @login_required

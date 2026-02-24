@@ -710,8 +710,6 @@ def index():
     ''')
     recent_payments = cursor.fetchall()
     
-    conn.close()
-    
     # Also fetch bank accounts for display
     bank_accounts = read_bank_accounts()
     

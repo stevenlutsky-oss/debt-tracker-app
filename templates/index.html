@@ -122,6 +122,14 @@
                 {% for exp in planned_expenses %}
                     {% if exp.due_day == day %}
                     <div class="day-item expense-item" title="Planned Expense: {{ exp.name }}">
+                        {{ exp.icon }}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
     <div style="margin-top: 15px; display: flex; gap: 20px; font-size: 13px;">
         <span><span style="display: inline-block; width: 12px; height: 12px; background: #e3f2fd; border: 2px solid #1976d2; border-radius: 3px; margin-right: 5px;"></span>Credit Card</span>
         <span><span style="display: inline-block; width: 12px; height: 12px; background: #f3e5f5; border: 2px solid #7b1fa2; border-radius: 3px; margin-right: 5px;"></span>Planned Expense</span>

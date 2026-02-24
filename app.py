@@ -694,6 +694,9 @@ def index(month=None, year=None):
     
     month_name = datetime(year, month, 1).strftime('%B %Y')
     
+    # Get the day of week the month starts on (0=Sunday, 1=Monday, etc.)
+    first_day_of_week = datetime(year, month, 1).weekday()
+    
     cards_with_interest = []
     for card in cards:
         balance = card['balance']
@@ -808,6 +811,7 @@ def index(month=None, year=None):
                            total_credit_limit=total_credit_limit, total_available_credit=total_available_credit,
                            percent_paid=percent_paid, planned_expenses=planned_expenses, today_day=today_day,
                            current_month=month, current_year=year, days_in_month=days_in_month,
+                           first_day_of_week=first_day_of_week,
                            prev_month=prev_month, prev_year=prev_year, 
                            next_month=next_month_calc, next_year=next_year,
                            month_name=month_name)

@@ -1819,6 +1819,173 @@ def strategy():
     return render_template('strategy.html', cards=cards, total_debt=total_debt,
                            snowball=snowball, avalanche=avalanche)
 
+# ============= SMART PAYDOWN ROUTES =============
+
+@app.route('/smart')
+@login_required
+def smart():
+    """Smart paydown calculator - allocates extra money to debts optimally"""
+    import calendar
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get current bank balance
+    bank_accounts = read_bank_accounts()
+    current_balance = sum(a['balance'] for a in bank_accounts) if bank_accounts else 0
+    
+    # Get paydays
+    cursor.execute('SELECT * FROM paydays WHERE is_active = 1 ORDER BY day ASC')
+    paydays = cursor.fetchall()
+    
+    # Get planned expenses
+    cursor.execute('SELECT * FROM planned_expenses WHERE is_active = 1 ORDER BY due_day ASC')
+    expenses = cursor.fetchall()
+    
+    # Get credit cards with balances
+    cursor.execute('SELECT * FROM cards WHERE balance > 0 ORDER BY interest_rate DESC')
+    cards = cursor.fetchall()
+    
+    # Get buffer threshold from session or default to 3000
+    buffer_threshold = session.get('buffer_threshold', 3000)
+    
+    # Calculate totals
+    total_income = sum(p['amount'] for p in paydays)
+    total_expenses = sum(e['amount'] for e in expenses)
+    total_min_payments = sum(c['minimum_payment'] for c in cards)
+    
+    # Project end of month balance
+    projected_balance = current_balance + total_income - total_expenses - total_min_payments
+    
+    # Calculate available for extra debt paydown
+    # Available = projected balance - buffer threshold
+    available_for_debt = max(0, projected_balance - buffer_threshold)
+    
+    # Smart allocation using Avalanche method (highest interest first)
+    smart_allocation = []
+    remaining_extra = available_for_debt
+    
+    # Sort cards by interest rate (highest first) for avalanche method
+    sorted_cards = sorted(cards, key=lambda x: x['interest_rate'], reverse=True)
+    
+    for card in sorted_cards:
+        card_dict = dict(card)
+        
+        # First add minimum payment
+        min_payment = card_dict['minimum_payment']
+        
+        # Then add extra if available
+        if remaining_extra > 0:
+            # Can we pay off the card?
+            total_for_card = min_payment + remaining_extra
+            if total_for_card >= card_dict['balance']:
+                # Pay off completely, carry remainder to next card
+                card_dict['recommended_payment'] = card_dict['balance']
+                remaining_extra = total_for_card - card_dict['balance']
+            else:
+                # Pay min + extra
+                card_dict['recommended_payment'] = total_for_card
+                remaining_extra = 0
+        else:
+            card_dict['recommended_payment'] = min_payment
+        
+        smart_allocation.append(card_dict)
+    
+    total_recommended = sum(c['recommended_payment'] for c in smart_allocation)
+    
+    # Build daily projection
+    today = datetime.now()
+    _, days_in_month = calendar.monthrange(today.year, today.month)
+    
+    daily_projection = []
+    running_balance = current_balance
+    
+    # Create events list: paydays, expenses, min payments
+    events = []
+    
+    for payday in paydays:
+        payday_day = get_payday_day(dict(payday), today.month, today.year)
+        events.append({
+            'day': payday_day,
+            'type': 'payday',
+            'name': payday['name'],
+            'amount': payday['amount']
+        })
+    
+    for expense in expenses:
+        events.append({
+            'day': expense['due_day'],
+            'type': 'expense',
+            'name': expense['name'],
+            'amount': expense['amount'],
+            'icon': expense['icon']
+        })
+    
+    for card in cards:
+        events.append({
+            'day': card['due_day'],
+            'type': 'payment',
+            'name': card['name'],
+            'amount': card['minimum_payment']
+        })
+    
+    # Sort events by day
+    events.sort(key=lambda x: x['day'])
+    
+    # Process each day
+    for day in range(1, days_in_month + 1):
+        day_events = [e for e in events if e['day'] == day]
+        
+        if day_events or day == today.day or day > today.day:
+            day_change = sum(e['amount'] if e['type'] == 'payday' else -e['amount'] for e in day_events)
+            running_balance += day_change
+            
+            # Build event description
+            event_names = []
+            for e in day_events:
+                if e['type'] == 'payday':
+                    event_names.append(f"💰 {e['name']}")
+                elif e['type'] == 'expense':
+                    event_names.append(f"{e.get('icon', '📦')} {e['name']}")
+                elif e['type'] == 'payment':
+                    event_names.append(f"💳 {e['name']} payment")
+            
+            daily_projection.append({
+                'day': day,
+                'event': ', '.join(event_names) if event_names else 'No events',
+                'change': day_change,
+                'balance': running_balance
+            })
+    
+    # Determine if buffer is safe
+    buffer_safe = projected_balance >= buffer_threshold
+    
+    conn.close()
+    
+    return render_template('smart.html',
+                           current_balance=current_balance,
+                           total_income=total_income,
+                           total_expenses=total_expenses,
+                           total_min_payments=total_min_payments,
+                           projected_balance=projected_balance,
+                           buffer_threshold=buffer_threshold,
+                           buffer_safe=buffer_safe,
+                           available_for_debt=available_for_debt,
+                           smart_allocation=smart_allocation,
+                           total_recommended=total_recommended,
+                           paydays=paydays,
+                           expenses=expenses,
+                           daily_projection=daily_projection)
+
+@app.route('/smart/update-threshold', methods=['POST'])
+@login_required
+def smart_update_threshold():
+    """Update the buffer threshold"""
+    threshold = float(request.form.get('buffer_threshold', 3000))
+    session['buffer_threshold'] = threshold
+    flash(f'Buffer threshold updated to ${threshold:,.2f}', 'success')
+    return redirect(url_for('smart'))
+
 @app.route('/progress')
 @login_required
 def progress():
@@ -2283,18 +2450,20 @@ def send_daily_preview():
     # Check if there's anything due tomorrow
     cards_tomorrow = []
     for card in cards:
-        payment_type = card.get('payment_type', 'minimum')
-        if payment_type == 'next_payment' and card.get('next_payment', 0) > 0:
-            payment_amount = card['next_payment']
+        card_dict = dict(card)
+        # Use next_payment if it exists and is > 0, otherwise use minimum_payment
+        next_payment = card_dict.get('next_payment', 0)
+        if next_payment and next_payment > 0:
+            payment_amount = next_payment
             payment_label = f"Next: ${payment_amount:,.2f}"
         else:
-            payment_amount = card['minimum_payment']
+            payment_amount = card_dict.get('minimum_payment', 0)
             payment_label = f"Min: ${payment_amount:,.2f}"
         
         cards_tomorrow.append({
-            'name': card['name'],
-            'balance': card['balance'],
-            'due_day': card['due_day'],
+            'name': card_dict['name'],
+            'balance': card_dict['balance'],
+            'due_day': card_dict['due_day'],
             'payment_amount': payment_amount,
             'payment_label': payment_label
         })

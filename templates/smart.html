@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Paydown - Debt Tracker{% endblock %}
+
+{% block content %}
+<h1>🧠 Smart Paydown</h1>
+<p style="margin-bottom: 20px; color: #666;">Intelligent debt allocation that keeps your $3,000 buffer intact</p>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Current Bank Balance</h3>
+        <div class="value" style="color: #2c3e50;">{{ current_balance | currency }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Total Paydays This Month</h3>
+        <div class="value" style="color: #27ae60;">+{{ total_income | currency }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Planned Expenses</h3>
+        <div class="value" style="color: #e74c3c;">-{{ total_expenses | currency }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Minimum Payments</h3>
+        <div class="value" style="color: #e74c3c;">-{{ total_min_payments | currency }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>💰 Monthly Cash Flow Analysis</h2>
+    <table>
+        <tr>
+            <td>Starting Bank Balance</td>
+            <td style="text-align: right;">{{ current_balance | currency }}</td>
+        </tr>
+        <tr>
+            <td>+ Paydays ({{ paydays|length }})</td>
+            <td style="text-align: right; color: #27ae60;">+{{ total_income | currency }}</td>
+        </tr>
+        <tr>
+            <td>- Planned Expenses ({{ expenses|length }})</td>
+            <td style="text-align: right; color: #e74c3c;">-{{ total_expenses | currency }}</td>
+        </tr>
+        <tr>
+            <td>- Minimum Card Payments</td>
+            <td style="text-align: right; color: #e74c3c;">-{{ total_min_payments | currency }}</td>
+        </tr>
+        <tr class="total-row">
+            <td><strong>Projected End-of-Month Balance</strong></td>
+            <td style="text-align: right;"><strong>{{ projected_balance | currency }}</strong></td>
+        </tr>
+    </table>
+</div>
+
+<div class="card" style="background: {% if buffer_safe %}#e8f5e9{% else %}#ffebee{% endif %};">
+    <h2>🛡️ Buffer Check ($3,000 threshold)</h2>
+    <table>
+        <tr>
+            <td>Minimum Balance Needed</td>
+            <td style="text-align: right;">{{ buffer_threshold | currency }}</td>
+        </tr>
+        <tr>
+            <td>Projected Balance</td>
+            <td style="text-align: right;">{{ projected_balance | currency }}</td>
+        </tr>
+        <tr>
+            <td><strong>Buffer Room</strong></td>
+            <td style="text-align: right;">
+                <strong>
+                {% if projected_balance >= buffer_threshold %}
+                    {{ (projected_balance - buffer_threshold) | currency }} available
+                {% else %}
+                    <span style="color: #e74c3c;">{{ (projected_balance - buffer_threshold) | currency }} SHORT</span>
+                {% endif %}
+                </strong>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="card">
+    <h2>🎯 Smart Paydown Recommendations</h2>
+    <p style="margin-bottom: 15px; color: #666;">
+        Based on your cash flow, you have <strong>{{ available_for_debt | currency }}</strong> extra this month after expenses and maintaining your $3,000 buffer.
+    </p>
+    
+    {% if available_for_debt > 0 %}
+    <p style="margin-bottom: 15px;">
+        <span class="badge badge-avalanche">Avalanche Method</span> 
+        <small style="color: #666;">Prioritizing highest interest rate first saves you the most money</small>
+    </p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Priority</th>
+                <th>Card</th>
+                <th>Balance</th>
+                <th>APR</th>
+                <th>Min Payment</th>
+                <th>Recommended Payment</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for card in smart_allocation %}
+            <tr>
+                <td>#{{ loop.index }}</td>
+                <td><strong>{{ card.name }}</strong></td>
+                <td>{{ card.balance | currency }}</td>
+                <td>{{ "%.2f"|format(card.interest_rate) }}%</td>
+                <td>{{ card.minimum_payment | currency }}</td>
+                <td style="font-weight: bold; color: #27ae60;">
+                    {% if card.recommended_payment > card.balance %}
+                        {{ card.balance | currency }} (payoff!)
+                    {% else %}
+                        {{ card.recommended_payment | currency }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="5">Total Recommended Payments</td>
+                <td>{{ total_recommended | currency }}</td>
+            </tr>
+            <tr style="background: #e8f5e9;">
+                <td colspan="5"><strong>Savings vs. Minimum Only</strong></td>
+                <td style="color: #27ae60;"><strong>{{ available_for_debt | currency }} extra to debt</strong></td>
+            </tr>
+        </tfoot>
+    </table>
+    
+    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+        <h4>💡 How This Works</h4>
+        <ul style="margin-left: 20px; margin-top: 10px;">
+            <li>First, your <strong>minimum payments</strong> are covered on all cards</li>
+            <li>Then, <strong>${{ buffer_threshold }} buffer</strong> is kept in your account</li>
+            <li>Any remaining money (<strong>{{ available_for_debt | currency }}</strong>) goes to the card with the highest interest rate</li>
+            <li>This <strong>Avalanche Method</strong> saves you the most money on interest over time</li>
+        </ul>
+    </div>
+    
+    {% else %}
+    <div style="padding: 20px; background: #fff3cd; border-radius: 8px; text-align: center;">
+        <p style="margin: 0; color: #856404;">
+            <strong>⚠️ No extra funds available for debt paydown this month.</strong><br>
+            Your projected balance is at or below the ${{ buffer_threshold }} buffer threshold.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>📅 Monthly Simulation</h2>
+    <p style="margin-bottom: 15px; color: #666;">Day-by-day projection of your bank balance</p>
+    
+    <div style="overflow-x: auto;">
+        <table style="font-size: 12px;">
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Event</th>
+                    <th>Change</th>
+                    <th>Balance</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for day in daily_projection %}
+                <tr style="{% if day.balance < buffer_threshold %}background: #ffebee;{% elif day.balance >= buffer_threshold and day.balance < buffer_threshold + 500 %}background: #fff3cd;{% else %}background: #e8f5e9;{% endif %}">
+                    <td>{{ day.day }}</td>
+                    <td>{{ day.event }}</td>
+                    <td style="color: {% if day.change > 0 %}#27ae60{% else %}#e74c3c{% endif %};">
+                        {% if day.change > 0 %}+{% endif %}{{ day.change | currency }}
+                    </td>
+                    <td><strong>{{ day.balance | currency }}</strong></td>
+                    <td>
+                        {% if day.balance < buffer_threshold %}
+                        <span style="color: #e74c3c;">⚠️ Below buffer</span>
+                        {% elif day.balance < buffer_threshold + 500 %}
+                        <span style="color: #f39c12;">Near buffer</span>
+                        {% else %}
+                        <span style="color: #27ae60;">✓ Healthy</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>⚙️ Settings</h2>
+    <form method="POST" action="/smart/update-threshold">
+        <div class="form-group">
+            <label for="buffer_threshold">Buffer Threshold ($)</label>
+            <input type="number" id="buffer_threshold" name="buffer_threshold" value="{{ buffer_threshold }}" min="0" step="100">
+            <small style="color: #666;">Minimum balance to keep in your checking account</small>
+        </div>
+        <button type="submit" class="btn">Update Threshold</button>
+    </form>
+</div>
+{% endblock %}
